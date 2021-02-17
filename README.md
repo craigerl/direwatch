@@ -21,7 +21,7 @@ respectively.  Configure these gpio pins in direwolf.
 
 
 Installation on raspbian/buster for short-attentions span programmers like me:
-
+```
 sudo apt-get install python3-pip   # python >= 3.6 required
 sudo pip3 install adafruit-circuitpython-rgb-display
 sudo pip3 install pyinotify
@@ -30,3 +30,4 @@ vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
 sudo pip3 install --upgrade adafruit-python-shell
 wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
 sudo python3 raspi-blinka.py   ## this gets the digitalio python module
+```
