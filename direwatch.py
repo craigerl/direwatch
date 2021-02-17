@@ -6,8 +6,8 @@
 Craig Lamparter KM6LYW,  2021, MIT Licnese
 
 This will tail a direwolf log file and display callsigns on an
-adafruit tft display.  Follow the instructions here to get
-the driver/library loaded:
+adafruit st7789 tft display (https://www.adafruit.com/product/4484).  
+Follow the instructions here to get the driver/library loaded:
 
 https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup
 
@@ -59,6 +59,24 @@ BAUDRATE = 64000000
 # Setup SPI bus using hardware SPI:
 spi = board.SPI()
 
+
+# Use one and only one of these screen definitions:
+
+## half height adafruit screen 1.1" (240x135), two buttons
+#disp = st7789.ST7789(
+#    board.SPI(),
+#    cs=cs_pin,
+#    dc=dc_pin,
+#    rst=reset_pin,
+#    baudrate=BAUDRATE,
+#    width=135,
+#    height=240,
+#    x_offset=53,
+#    y_offset=40,
+#    rotation=270,
+#)
+
+# full height adafruit screen 1.3" (240x240), two buttons
 disp = st7789.ST7789(
     spi,
     cs=cs_pin,
