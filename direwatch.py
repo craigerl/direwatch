@@ -122,7 +122,7 @@ else:
 if args["title_text"]:
    title_text = args["title_text"]
 else:
-   title_text = "Packet RF"
+   title_text = "Direwatch"
 
 
 # Bluetooth LED connection check 
