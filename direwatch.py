@@ -15,7 +15,7 @@ Current configuration is for the 240x240 st7789 unit.
 
 Do not install the kernel module/framebuffer.
 
-GPIO pins 12 (DCD) and 16 (TX) are monitored and light green/red icons respectively.
+GPIO pins 12 (PTT) and 16 (DCD) are monitored and light green/red icons respectively.
 Configure these gpio pins in direwolf.
 
 
@@ -45,7 +45,7 @@ from PIL import Image, ImageDraw, ImageFont
 import re
 import adafruit_rgb_display.st7789 as st7789  
 import pyinotify
-import RPi.GPIO as GPIO
+#import RPi.GPIO as GPIO
 import threading
 
 # Configuration for CS and DC pins (these are PiTFT defaults):
@@ -104,7 +104,6 @@ draw = ImageDraw.Draw(image)
 padding = 4 
 title_bar_height = 34
 
-
 def parse_arguments():
     ap = argparse.ArgumentParser()
     ap.add_argument("-l", "--log", required=True, help="Direwolf log file location")
@@ -158,7 +157,7 @@ bluetooth_thread.start()
 # Status LEDs thread
 
 def handle_changeG(cb):
-   with open('/sys/class/gpio/gpio12/value', 'r') as f:          ## GREEN
+   with open('/sys/class/gpio/gpio16/value', 'r') as f:          ## GREEN
       status = f.read(1)
       if status == '0':
          draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,80,0,0))
@@ -169,7 +168,7 @@ def handle_changeG(cb):
    f.close
 
 def handle_changeR(cb):
-   with open('/sys/class/gpio/gpio16/value', 'r') as f:          ## RED
+   with open('/sys/class/gpio/gpio12/value', 'r') as f:          ## RED
       status = f.read(1)
       if status == '0':
          draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,0))
@@ -192,8 +191,8 @@ notifierG = pyinotify.Notifier(wmG, default_proc_fun=null_function)
 notifierR = pyinotify.Notifier(wmR, default_proc_fun=null_function)
 
 # Watch both gpio pins for change
-wmG.add_watch('/sys/class/gpio/gpio12/value', pyinotify.IN_MODIFY)
-wmR.add_watch('/sys/class/gpio/gpio16/value', pyinotify.IN_MODIFY)
+wmG.add_watch('/sys/class/gpio/gpio16/value', pyinotify.IN_MODIFY)
+wmR.add_watch('/sys/class/gpio/gpio12/value', pyinotify.IN_MODIFY)
 
 #run led watch threads in background
 watch_threadG = threading.Thread(target=notifierG.loop, name="led-watcherG", kwargs=dict(callback=handle_changeG))
@@ -210,8 +209,15 @@ line_height = font.getsize("ABCJQ")[1] - 1          # tallest callsign, with dan
 max_line_width = font.getsize("KN6MUC-15")[0] - 1   # longest callsign i can think of in pixels
 max_cols = width // max_line_width
 font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
+font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
 
 # Draw a black filled box to clear the image.
+draw.rectangle((0, 0, width, height), outline=0, fill=0)
+
+# Draw our logo
+w,h = font.getsize(title_text)
+draw.text(   (padding * 3  ,  height // 2 - h) ,   title_text, font=font_huge,   fill="#99AA99")
+time.sleep(5)
 draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
 # draw the header bar
