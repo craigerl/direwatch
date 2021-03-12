@@ -47,11 +47,13 @@ import adafruit_rgb_display.st7789 as st7789
 import pyinotify
 #import RPi.GPIO as GPIO
 import threading
+import signal
+import os
 
 # Configuration for CS and DC pins (these are PiTFT defaults):
 cs_pin = digitalio.DigitalInOut(board.CE0)
 dc_pin = digitalio.DigitalInOut(board.D25)
-reset_pin = digitalio.DigitalInOut(board.D24)
+#reset_pin = digitalio.DigitalInOut(board.D24)
 
 # Config for display baudrate (default max is 24mhz):
 BAUDRATE = 64000000
@@ -81,7 +83,7 @@ disp = st7789.ST7789(
     spi,
     cs=cs_pin,
     dc=dc_pin,
-    rst=reset_pin,
+#    rst=reset_pin,
     baudrate=BAUDRATE,
     height=240,
     y_offset=80 
@@ -104,6 +106,20 @@ draw = ImageDraw.Draw(image)
 padding = 4 
 title_bar_height = 34
 
+
+def signal_handler(signal, frame):
+   print("Got ", signal, " exiting.")
+   draw.rectangle((0, 0, width, height), outline=0, fill=(30,30,30))
+   with display_lock:
+       disp.image(image)
+   #sys.exit(0)  # thread ignores this
+   os._exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+
+
 def parse_arguments():
     ap = argparse.ArgumentParser()
     ap.add_argument("-l", "--log", required=True, help="Direwolf log file location")
@@ -123,6 +139,26 @@ if args["title_text"]:
 else:
    title_text = "Direwatch"
 
+
+## GPIO buttons, pi tft uses logical 23 and 24 gpio pins
+## I moved this to direbuttons.py so we don't kill/restart ourselves
+## This is an example if you want to use the buttons here.
+## Uncomment the GPIO import at the top of this file if you want buttons.
+#GPIO.setwarnings(False)
+#GPIO.setmode(GPIO.BCM)
+#GPIO.setup(23,GPIO.IN)
+#GPIO.setup(24,GPIO.IN)
+#
+#def button_callback(number):
+#    print("Button ",   number,  "  pressed.")
+#    if number == 23:
+#        pass
+#    if number == 24:
+#        pass
+#
+#GPIO.add_event_detect(23,GPIO.FALLING,callback=button_callback,bouncetime=300) 
+#GPIO.add_event_detect(24,GPIO.FALLING,callback=button_callback,bouncetime=300)
+       
 
 # Bluetooth LED connection check 
 
