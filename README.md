@@ -1,4 +1,6 @@
 # direwatch
+by KM6LYW
+
 Display direwolf/APRS/packet information on small/adafruit TFT display
 
 ```
