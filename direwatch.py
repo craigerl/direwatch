@@ -29,7 +29,7 @@ vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
 sudo pip3 install --upgrade adafruit-python-shell
 wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
 sudo python3 raspi-blinka.py   ## this gets the digitalio python module
-
+sudo pip install aprslib     ## so we can parse ax.25 packets
 
 Much code taken from ladyada for her great work driving these devices,
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
@@ -45,10 +45,11 @@ from PIL import Image, ImageDraw, ImageFont
 import re
 import adafruit_rgb_display.st7789 as st7789  
 import pyinotify
-#import RPi.GPIO as GPIO
+import RPi.GPIO as GPIO
 import threading
 import signal
 import os
+import aprslib
 
 # Configuration for CS and DC pins (these are PiTFT defaults):
 cs_pin = digitalio.DigitalInOut(board.CE0)
@@ -86,7 +87,8 @@ disp = st7789.ST7789(
 #    rst=reset_pin,
     baudrate=BAUDRATE,
     height=240,
-    y_offset=80 
+    y_offset=80,
+    rotation=180
 )
 
 # don't write to display concurrently with thread
@@ -131,9 +133,17 @@ def parse_arguments():
 args = parse_arguments()
 logfile = args["log"]
 if args["fontsize"]:
+   # 17 puts 11 lines 2 columns
+   # 20 puts 9 lines
+   # 25 puts 7 lines    
+   # 30 puts 6 lines   ** default
+   # 34 puts 5 lines, max width
    fontsize = int(args["fontsize"])
+   if fontsize > 30:
+      print("Look, this display isn't very wide, the maximum font size is 34pts, and you chose " + str(fontsize) + "?")
+      print("Setting to 34 instead.")
 else:
-   fontsize = 20   
+   fontsize = 30
 if args["title_text"]:
    title_text = args["title_text"]
 else:
@@ -164,6 +174,9 @@ else:
 
 def bluetooth_connection_poll_thread():
     bt_status = 0
+    GPIO.setmode(GPIO.BCM)
+    GPIO.setup(5, GPIO.OUT) 
+
     while True:
         cmd = "hcitool con | wc -l"
         connection_count = subprocess.check_output(cmd, shell=True).decode("utf-8")
@@ -172,7 +185,7 @@ def bluetooth_connection_poll_thread():
                 bt_status = 1
                 print("BT ON")
                 bticon = Image.open('bt.small.on.png')   
-                #image.paste(bticon, (148,6), bticon)
+                GPIO.output(5, GPIO.HIGH)
                 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
                 with display_lock:
                     disp.image(image)
@@ -180,8 +193,8 @@ def bluetooth_connection_poll_thread():
             if bt_status == 1:
                 bt_status = 0  
                 bticon = Image.open('bt.small.off.png')   
+                GPIO.output(5, GPIO.LOW)
                 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
-                #image.paste(bticon, (148,6), bticon)
                 with display_lock:
                     disp.image(image)
         time.sleep(2)
@@ -236,13 +249,15 @@ watch_threadR = threading.Thread(target=notifierR.loop, name="led-watcherR", kwa
 watch_threadG.start()
 watch_threadR.start()
 
+symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
+symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
 
 # Load a TTF font.  Make sure the .ttf font file is in the
 # same directory as the python script!
 # Some other nice fonts to try: http://www.dafont.com/bitmap.php
 font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", fontsize)
 line_height = font.getsize("ABCJQ")[1] - 1          # tallest callsign, with dangling J/Q tails
-max_line_width = font.getsize("KN6MUC-15")[0] - 1   # longest callsign i can think of in pixels
+max_line_width = font.getsize("   KN6MUC-15")[0] - 1   # longest callsign i can think of in pixels, with spaces for symbol
 max_cols = width // max_line_width
 font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
 font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
@@ -287,21 +302,52 @@ f = subprocess.Popen(['tail','-F','/run/direwolf.log'], stdout=subprocess.PIPE,s
 
 while True:
     line = f.stdout.readline().decode("utf-8", errors="ignore")
-    search = re.search("^\[\d\.\d\] ([a-zA-Z0-9-]*)", line)
 
+    search = re.search("^\[\d\.\d\] (.*)", line)
     if search is not None:
-       lastcall = call
-       call = search.group(1)
+       packetstring = search.group(1)
+       packetstring = packetstring.replace('<0x0d>','\x0d').replace('<0x1c>','\x1c').replace('<0x1e>','\x1e').replace('<0x1f>','\0x1f')
+       #print(packetstring)
     else:
        continue
 
+    lastcall = call
+
+    try:                                        #   aprslib has trouble parsing all packets
+       packet = aprslib.parse(packetstring) 
+       call = packet['from']
+       if 'symbol' in packet:
+          symbol = packet['symbol']
+          symbol_table = packet['symbol_table']
+       else:
+          symbol = '/'
+          symbol_table = '/'
+    except:                                     #   if it fails, let's just snag the callsign
+       #print("aprslib failed to parse.")
+       search = re.search("^\[\d\.\d\] ([a-zA-Z0-9-]*)", line)
+       if search is not None:
+          call = search.group(1) 
+          symbol = '/'
+          symbol_table = '/'
+       else:
+          continue
+
+    #print("Sym: " + symbol)
+    offset = ord(symbol) - 33
+    row = offset // 16 
+    col = offset % 16 
+    #print("Tbl: " + str(symbol_table) )
+    #print("Row: " + str(row) )
+    #print("Col: " + str(col) )
+    #print(" ")
+
     if call == lastcall:   # blink duplicates
        time.sleep(0.5)
-       draw.text((x, y), call, font=font, fill="#000000")
+       draw.text((x, y), "    " + call, font=font, fill="#000000")  # erase 
        with display_lock:
            disp.image(image)
        time.sleep(0.1)
-       draw.text((x, y), call, font=font, fill="#AAAAAA")
+       draw.text((x, y),  "    " + call, font=font, fill="#AAAAAA")  # redraw
        with display_lock:
            disp.image(image)
     else:
@@ -318,7 +364,15 @@ while True:
            line_count = 0
            col_count = 0
            time.sleep(2.0)
-       draw.text((x, y), call, font=font, fill="#AAAAAA")
+       crop_area = (col*64, row*64, col*64+64, row*64+64)
+       if symbol_table == '/':
+          symbolimage = symbol_chart0x64.crop(crop_area)
+       else:
+          symbolimage = symbol_chart1x64.crop(crop_area)
+       symbolimage.thumbnail( (font.getsize("XXX")[1]+2,font.getsize("XXX")[1]+2))
+       symbol_vertical_offset=fontsize // 12 
+       image.paste(symbolimage, (x, y+symbol_vertical_offset), symbolimage)
+       draw.text((x, y), "    " + call, font=font, fill="#AAAAAA")
        line_count += 1
        with display_lock:
            disp.image(image)
