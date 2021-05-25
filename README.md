@@ -37,3 +37,5 @@ sudo pip3 install --upgrade adafruit-python-shell
 wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
 sudo python3 raspi-blinka.py   ## this gets the digitalio python module
 ```
+
+Special thanks to hessu for the svg aprs symbols https://github.com/hessu/aprs-symbols
