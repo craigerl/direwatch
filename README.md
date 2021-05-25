@@ -30,6 +30,7 @@ Installation on raspbian/buster for short-attentions span programmers like me:
 sudo apt-get install python3-pip   # python >= 3.6 required
 sudo pip3 install adafruit-circuitpython-rgb-display
 sudo pip3 install pyinotify
+sudo pip3 install aprslib
 sudo apt-get install python3-dev python3-rpi.gpio
 vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
 sudo pip3 install --upgrade adafruit-python-shell
