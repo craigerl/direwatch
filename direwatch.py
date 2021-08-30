@@ -142,6 +142,7 @@ if args["fontsize"]:
    if fontsize > 30:
       print("Look, this display isn't very wide, the maximum font size is 34pts, and you chose " + str(fontsize) + "?")
       print("Setting to 34 instead.")
+      fontsize = 34
 else:
    fontsize = 30
 if args["title_text"]:
@@ -249,9 +250,6 @@ watch_threadR = threading.Thread(target=notifierR.loop, name="led-watcherR", kwa
 watch_threadG.start()
 watch_threadR.start()
 
-symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
-symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
-
 # Load a TTF font.  Make sure the .ttf font file is in the
 # same directory as the python script!
 # Some other nice fonts to try: http://www.dafont.com/bitmap.php
@@ -261,6 +259,14 @@ max_line_width = font.getsize("   KN6MUC-15")[0] - 1   # longest callsign i can 
 max_cols = width // max_line_width
 font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
 font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 34)
+
+# load and scale symbol chart based on font height
+symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
+symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
+symbol_chart0x64.thumbnail((font.getsize("XXX")[1] * 16, font.getsize("XXX")[1] * 6))
+symbol_chart1x64.thumbnail((font.getsize("XXX")[1] * 16, font.getsize("XXX")[1] * 6))
+symbol_dimension = symbol_chart0x64.width//16
+       
 
 # Draw a black filled box to clear the image.
 draw.rectangle((0, 0, width, height), outline=0, fill=0)
@@ -364,19 +370,17 @@ while True:
            line_count = 0
            col_count = 0
            time.sleep(2.0)
-       crop_area = (col*64, row*64, col*64+64, row*64+64)
+       crop_area = (col*symbol_dimension, row*symbol_dimension, col*symbol_dimension+symbol_dimension, row*symbol_dimension+symbol_dimension)
        if symbol_table == '/':
           symbolimage = symbol_chart0x64.crop(crop_area)
        else:
           symbolimage = symbol_chart1x64.crop(crop_area)
-       symbolimage.thumbnail( (font.getsize("XXX")[1]+2,font.getsize("XXX")[1]+2))
        symbol_vertical_offset=fontsize // 12 
        image.paste(symbolimage, (x, y+symbol_vertical_offset), symbolimage)
        draw.text((x, y), "    " + call, font=font, fill="#AAAAAA")
        line_count += 1
        with display_lock:
            disp.image(image)
-
 
 exit(0)
 
