@@ -332,8 +332,8 @@ line_count = 0
 col_count = 0 
 
 # tail and block on the log file
-#f = subprocess.Popen(['tail','-F','/run/direwolf.log'], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-f = subprocess.Popen(['tail','-F','-n','80','/run/direwolf.log'], stdout=subprocess.PIPE,stderr=subprocess.PIPE)  # debug 
+f = subprocess.Popen(['tail','-F',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+#f = subprocess.Popen(['tail','-F','-n','80','/run/direwolf.log'], stdout=subprocess.PIPE,stderr=subprocess.PIPE)  # debug 
 
 ##### one_loop() ############
 def one_loop():
