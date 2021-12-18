@@ -87,7 +87,7 @@ disp = st7789.ST7789(
     baudrate=BAUDRATE,
     height=240,
     y_offset=80,
-    rotation=0
+    rotation=180
 )
 
 # don't write to display concurrently with thread
