@@ -326,12 +326,7 @@ line_count = 0
 col_count = 0 
 
 # tail and block on the log file
-<<<<<<< HEAD
 f = subprocess.Popen(['tail','-F','-n','10',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-=======
-f = subprocess.Popen(['tail','-F',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-#f = subprocess.Popen(['tail','-F','-n','80','/run/direwolf.log'], stdout=subprocess.PIPE,stderr=subprocess.PIPE)  # debug 
->>>>>>> 5cd9b2999d17c0c86901972ecfd79de7713009db
 
 # Display loops.  list of stations, or a single station on the screen at a time
 
