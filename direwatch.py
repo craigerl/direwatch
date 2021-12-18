@@ -349,7 +349,7 @@ def single_loop():
   
       try:  
          packet = aprslib.parse(packetstring)                           # parse packet
-         print(packet)
+         #print(packet)
          call = packet['from']
          supported_packet = True 
       except Exception as e:                                            # aprslib doesn't support all packet types
