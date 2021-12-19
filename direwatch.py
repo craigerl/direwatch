@@ -180,6 +180,7 @@ bluetooth_thread.start()
 
 
 def red_led_from_logfile_thread():                               ## RED logfile
+   #print("red led changing via logfile")
    #f = subprocess.Popen(['tail','-F',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    f = subprocess.Popen(['tail','-F',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    while True:
@@ -207,6 +208,7 @@ def handle_changeG(cb):
    f.close
 
 def handle_changeR(cb):
+   #print("red led changing via gpio")
    with open('/sys/class/gpio/gpio12/value', 'r') as f:          ## RED GPIO
       status = f.read(1)
       if status == '0':
@@ -231,13 +233,13 @@ notifierR = pyinotify.Notifier(wmR, default_proc_fun=null_function)
 
 # Watch both gpio pins for change if they exist
 wmG.add_watch('/sys/class/gpio/gpio16/value', pyinotify.IN_MODIFY)
-if os.path.exists("/sys/class/gpio/gpio12/value/"):
+if os.path.exists("/sys/class/gpio/gpio12/value"):
    wmR.add_watch('/sys/class/gpio/gpio12/value', pyinotify.IN_MODIFY)
 
 watch_threadG = threading.Thread(target=notifierG.loop, name="led-watcherG", kwargs=dict(callback=handle_changeG))
 
 # Use gpio pin for red led if it exists, otherwise watch log file for transmit activity
-if os.path.exists("/sys/class/gpio/gpio12/value/"):
+if os.path.exists("/sys/class/gpio/gpio12/value"):
    watch_threadR = threading.Thread(target=notifierR.loop, name="led-watcherR", kwargs=dict(callback=handle_changeR))
 else:
    watch_threadR = threading.Thread(target=red_led_from_logfile_thread, name="redledthreadlog")
