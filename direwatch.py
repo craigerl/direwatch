@@ -353,7 +353,7 @@ def single_loop():
          call = packet['from']
          supported_packet = True 
       except Exception as e:                                            # aprslib doesn't support all packet types
-         print("Exception: aprslib: ", str(e), ": ", packetstring)
+         #print("Exception: aprslib: ", str(e), ": ", packetstring)
          supported_packet = False
          packet = {}   
          search = re.search("^\[\d\.\d\] ([a-zA-Z0-9-]*)", line)        # snag callsign from unsupported packet
@@ -378,14 +378,14 @@ def single_loop():
          elif 'weather' in packet:                                      # weather (often contained in compressed/uncompressed type packets)
             info1 = round(packet['weather']['temperature'])
             info1 = str(int(info1) * 1.8 + 32) + 'F'
-            print(info1)
+            #print(info1)
             info2 = str(packet['weather']['rain_since_midnight']) + '\" rain'
-            print(info2)
+            #print(info2)
             info3 = str(round(packet['weather']['wind_speed'])) + ' m/h'
             info3 = info3 + ' ' + str(packet['weather']['wind_direction']) + '\''
-            print(info3)
+            #print(info3)
             info4 = str(packet['comment'])
-            print(info4)                                                # position packet
+            #print(info4)                                                # position packet
          elif packet['format'] == 'mic-e' or packet['format'] == 'compressed'  or packet['format'] == 'uncompressed' or packet['format'] == 'object':  
             info4 = packet['comment']                                   # fixme: comment is jibberish in all compressed packets                           
          elif 'status' in packet:                                       # status packet
