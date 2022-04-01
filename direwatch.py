@@ -341,8 +341,9 @@ def single_loop():
       info1 = info2 = info3 = info4 = ''      # sane defaults
 
       line = f.stdout.readline().decode("utf-8", errors="ignore")
+      
+      search = re.search("^\[\d\.*\d*\] (.*)", line)
 
-      search = re.search("^\[\d\.\d\] (.*)", line)                      # see if logfile line is an incoming packet over RF
       if search is not None:
          packetstring = search.group(1)
          packetstring = packetstring.replace('<0x0d>','\x0d').replace('<0x1c>','\x1c').replace('<0x1e>','\x1e').replace('<0x1f>','\0x1f').replace('<0x0a>','\0x0a')
@@ -358,7 +359,7 @@ def single_loop():
          #print("Exception: aprslib: ", str(e), ": ", packetstring)
          supported_packet = False
          packet = {}   
-         search = re.search("^\[\d\.\d\] ([a-zA-Z0-9-]*)", line)        # snag callsign from unsupported packet
+         search = re.search("^\[\d\.*\d*\] ([a-zA-Z0-9-]*)", line)        # snag callsign from unsupported packet
          if search is not None:
             call = search.group(1) 
             symbol = '/'                                                # unsupported packet symbol set to red ball
@@ -436,7 +437,10 @@ def list_loop():
     line = f.stdout.readline().decode("utf-8", errors="ignore")
 
     # watch for regular packet
-    search = re.search("^\[\d\.\d\] (.*)", line)
+    #search = re.search("^\[\d\.\d\] (.*)", line)
+    #Direwolf lines start with [#.#], or just [#], observed on HF
+    search = re.search("^\[\d\.*\d*\] (.*)", line)
+
     if search is not None:
        packetstring = search.group(1)
        packetstring = packetstring.replace('<0x0d>','\x0d').replace('<0x1c>','\x1c').replace('<0x1e>','\x1e').replace('<0x1f>','\0x1f').replace('<0x0a>','\0x0a')
@@ -456,7 +460,8 @@ def list_loop():
           symbol_table = '/'
     except:                                     #   if it fails, let's just snag the callsign
        #print("aprslib failed to parse.")
-       search = re.search("^\[\d\.\d\] ([a-zA-Z0-9-]*)", line)
+       #search = re.search("^\[\d\.\d\] ([a-zA-Z0-9-]*)", line)
+       search = re.search("^\[\d\.*\d*\] ([a-zA-Z0-9-]*)", line)
        if search is not None:
           call = search.group(1) 
           symbol = '/'
