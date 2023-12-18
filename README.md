@@ -18,12 +18,18 @@ Follow the instructions here to get the driver/library loaded:
 
 https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup
 
+Three screens are supported ST7789 240x240, ST7789 240x135, ILI9341 240x360.
+
 Current configuration is for the 240x240 st7789 unit.
+
+Uncomment the screen section for your particular screen around line 100.
 
 Do not install the kernel module/framebuffer.
 
 GPIO pins 12 (DCD) and 16 (TX) are monitored and light green/red icons
 respectively.  Configure these gpio pins in direwolf.
+
+For Pi5, use digibuttons.gpiod.py, for other Pi's use digibuttons.rpigpio.py or digibuttons.gpiozero .
 
 
 Installation on raspbian/buster for short-attentions span programmers like me:
