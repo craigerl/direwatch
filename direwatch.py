@@ -3,17 +3,31 @@
 # direwatch
 
 """
-Craig Lamparter KM6LYW,  2022, MIT Licnese
+Craig Lamparter KM6LYW,  2024, MIT Licnese
 
 Code derived from Adafruit PIL python example
 
+Usage:
+  direwatch.py --log="/run/direwolf.log" --fontsize="30" --title_text="DigiPi"  -o
+  (-o option displays one station at a time, full screen)
+
 This will tail a direwolf log file and display callsigns on an
-adafruit st7789 tft display (https://www.adafruit.com/product/4484).  
-Follow the instructions here to get the driver/library loaded:
+adafruit ST7789 or ILI9341 tft display 
+
+  https://www.adafruit.com/product/4484  
+  https://www.adafruit.com/product/2423
+
+More information on the ST7789 display is here:
 
 https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup
 
-Current configuration is for the 240x240 st7789 unit.
+Current configuration is for the 240x240 ST7789 unit.
+
+Uncomment one, and only one of the display definitions below depending
+on your display st7789-240x135,  st7789-240x240, or ili9341-240x320.  Other
+screens may or may not work, we're all counting on you, good luck.
+
+SPI interface must be enabled in config.txt or in raspi-config
 
 Do not install the kernel module/framebuffer.
 
@@ -21,16 +35,24 @@ GPIO pins 12 (PTT) and 16 (DCD) are monitored and light green/red icons respecti
 Configure these gpio pins in direwolf.
 
 Installation on raspbian/bullseye for short-attentions span programmers like me:
+  sudo apt-get install python3-pip   # python >= 3.6 required
+  sudo apt-get install gpiozero
+  sudo pip3 install adafruit-circuitpython-rgb-display
+  sudo pip3 install pyinotify
+  sudo apt-get install python3-dev python3-rpi.gpio
+  vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
+  sudo pip3 install --upgrade adafruit-python-shell
+  wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
+  sudo python3 raspi-blinka.py   ## this gets the digitalio python module
+  sudo pip install aprslib     ## so we can parse ax.25 packets
 
-sudo apt-get install python3-pip   # python >= 3.6 required
-sudo pip3 install adafruit-circuitpython-rgb-display
-sudo pip3 install pyinotify
-sudo apt-get install python3-dev python3-rpi.gpio
-vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
-sudo pip3 install --upgrade adafruit-python-shell
-wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
-sudo python3 raspi-blinka.py   ## this gets the digitalio python module
-sudo pip install aprslib     ## so we can parse ax.25 packets
+Installation on raspbian/bookworm
+   sudo rm -rf /usr/lib/python3.11/EXTERNALLY-MANAGED
+   sudo pip3 install Adafruit-Blinka
+   sudo pip3 install python3-numpy
+   sudo pip3 install adafruit-circuitpython-rgb-display
+   sudo pip3 install aprslib
+   vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
 
 Much code taken from ladyada for her great work driving these devices,
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
@@ -45,24 +67,25 @@ import board
 from PIL import Image, ImageDraw, ImageFont
 import re
 import adafruit_rgb_display.st7789 as st7789  
+import adafruit_rgb_display.ili9341 as ili9341 
 import pyinotify
-import RPi.GPIO as GPIO
+from gpiozero import LED
 import threading
 import signal
 import os
 import aprslib
 
-# Configuration for CS and DC pins (these are PiTFT defaults):
-cs_pin = digitalio.DigitalInOut(board.CE0)
+#Configuration for CS and DC pins (these are PiTFT defaults):
+#cs_pin = digitalio.DigitalInOut(board.CE0)
+#dc_pin = digitalio.DigitalInOut(board.D25)
 dc_pin = digitalio.DigitalInOut(board.D25)
-#reset_pin = digitalio.DigitalInOut(board.D24)
+cs_pin = digitalio.DigitalInOut(board.D4)
 
 # Config for display baudrate (default max is 24mhz):
 BAUDRATE = 64000000
 
 # Setup SPI bus using hardware SPI:
 spi = board.SPI()
-
 
 # Use one and only one of these screen definitions:
 
@@ -89,6 +112,18 @@ disp = st7789.ST7789(
     y_offset=80,
     rotation=180
 )
+
+## Large wide-screen adafruit screen 2.8" (320x240), two buttons
+#disp = ili9341.ILI9341(
+#    spi,
+#    cs=cs_pin,
+#    dc=dc_pin,
+#    baudrate=BAUDRATE,
+#    width=240,
+#    height=320,
+#    rotation=270
+#)
+
 
 # don't write to display concurrently with thread
 display_lock = threading.Lock()
@@ -150,8 +185,9 @@ else:
 
 def bluetooth_connection_poll_thread():
     bt_status = 0
-    GPIO.setmode(GPIO.BCM)
-    GPIO.setup(5, GPIO.OUT) 
+    #GPIO.setmode(GPIO.BCM)
+    #GPIO.setup(5, GPIO.OUT) 
+    blue_led = LED(5)
     time.sleep(2) # so screen initialization doesn't overdraw bluetooth as off
 
     while True:
@@ -161,7 +197,8 @@ def bluetooth_connection_poll_thread():
             if bt_status == 0:
                 bt_status = 1
                 bticon = Image.open('bt.small.on.png')   
-                GPIO.output(5, GPIO.HIGH)
+                #GPIO.output(5, GPIO.HIGH)
+                blue_led.on() 
                 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
                 with display_lock:
                     disp.image(image)
@@ -169,7 +206,8 @@ def bluetooth_connection_poll_thread():
             if bt_status == 1:
                 bt_status = 0  
                 bticon = Image.open('bt.small.off.png')   
-                GPIO.output(5, GPIO.LOW)
+                #GPIO.output(5, GPIO.LOW)
+                blue_led.off()
                 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
                 with display_lock:
                     disp.image(image)
@@ -177,7 +215,6 @@ def bluetooth_connection_poll_thread():
 
 bluetooth_thread = threading.Thread(target=bluetooth_connection_poll_thread, name="btwatch")
 bluetooth_thread.start()
-
 
 def red_led_from_logfile_thread():                               ## RED logfile
    #print("red led changing via logfile")
@@ -194,7 +231,6 @@ def red_led_from_logfile_thread():                               ## RED logfile
          draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,0))
          with display_lock:
             disp.image(image)
-
 
 def handle_changeG(cb):
    with open('/sys/class/gpio/gpio16/value', 'r') as f:          ## GREEN
@@ -269,27 +305,26 @@ font_small = ImageFont.truetype(fontpath_bold, 18)
 font_big = ImageFont.truetype(fontpath_bold, 24)
 font_huge = ImageFont.truetype(fontpath_bold, 34)
 font_epic = ImageFont.truetype(fontpath, 40)
-#font = ImageFont.truetype("/usr/share/fonts/truetype/dafont/BebasNeue-Regular.ttf", fontsize)
-#font_big = ImageFont.truetype("/usr/share/fonts/truetype/dafont/BebasNeue-Regular.ttf", 24)
-#font_huge = ImageFont.truetype("/usr/share/fonts/truetype/dafont/BebasNeue-Regular.ttf", 34)
-line_height = font.getsize("ABCJQ")[1] - 1          # tallest callsign, with dangling J/Q tails
+line_height = font.getbbox("ABCJQ")[3] - 1          # tallest callsign, with dangling J/Q tails
+
 
 # load and scale symbol chart based on font height
 symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
 symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
-fontvertical = font.getsize("XXX")[1]
+#fontvertical = font.getsize("XXX")[1]
+fontvertical = font.getbbox("ABCJQ")[3]       # tallest callsign, with dangling J/Q tails
 symbol_chart0x64.thumbnail(((fontvertical + fontvertical // 8) * 16, (fontvertical + fontvertical // 8) * 6)) # nudge larger than font, into space between lines
 symbol_chart1x64.thumbnail(((fontvertical + fontvertical // 8) * 16, (fontvertical + fontvertical // 8) * 6)) # nudge larger than font, into space between lines
 symbol_dimension = symbol_chart0x64.width//16
 
-max_line_width = font.getsize("KN6MUC-15")[0] + symbol_dimension + (symbol_dimension // 8)   # longest callsign i can think of in pixels, plus symbo width + space
+max_line_width = font.getbbox("KN6MUC-15")[2] + symbol_dimension + (symbol_dimension // 8)   # longest callsign i can think of in pixels, plus symbo width + space
 max_cols = width // max_line_width
 
 # Draw a black filled box to clear the image.
 draw.rectangle((0, 0, width, height), outline=0, fill="#000000")
 
 # Draw our logo
-w,h = font.getsize(title_text)
+h = font.getbbox(title_text)[3]
 draw.text(   (padding * 3  ,  height // 2 - h) ,   title_text, font=font_huge,   fill="#99AA99")
 with display_lock:
     disp.image(image)
@@ -332,6 +367,7 @@ f = subprocess.Popen(['tail','-F','-n','10',logfile], stdout=subprocess.PIPE,std
 
 # Display loops.  list of stations, or a single station on the screen at a time
 
+# single loop, display one station at a time full screen, when using "-o" option on command line
 def single_loop():
    symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
    symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
@@ -359,7 +395,7 @@ def single_loop():
          #print("Exception: aprslib: ", str(e), ": ", packetstring)
          supported_packet = False
          packet = {}   
-         search = re.search("^\[\d\.*\d*\] ([a-zA-Z0-9-]*)", line)        # snag callsign from unsupported packet
+         search = re.search("^\[\d\.*\d*\] ([a-zA-Z0-9-]*)", line)      # snag callsign from unsupported packet
          if search is not None:
             call = search.group(1) 
             symbol = '/'                                                # unsupported packet symbol set to red ball
@@ -388,11 +424,11 @@ def single_loop():
             info3 = info3 + ' ' + str(packet['weather']['wind_direction']) + '\''
             #print(info3)
             info4 = str(packet['comment'])
-            #print(info4)                                                # position packet
+            #print(info4)                                               # position packet
          elif packet['format'] == 'mic-e' or packet['format'] == 'compressed'  or packet['format'] == 'uncompressed' or packet['format'] == 'object':  
-            info4 = packet['comment']                                   # fixme: comment is jibberish in all compressed packets                           
+            info4 = re.sub('^[^0-9a-zA-Z]*', '', packet['comment'])     # get rid of leading punctuation
          elif 'status' in packet:                                       # status packet
-            info4 = packet['status']
+            info4 = re.sub('^[^0-9a-zA-Z]+', '', packet['status'])      # get rid of leading punctuation
       except Exception as e:
          print("Malformed/missing data: ", str(e), ": ", packetstring)
 
@@ -409,24 +445,25 @@ def single_loop():
       else:
          symbolimage = symbol_chart1x64.crop(crop_area)
       symbolimage = symbolimage.resize((height // 2, height // 2), Image.NEAREST)
-      #image.paste(symbolimage, (0, 36), symbolimage)
       image.paste(symbolimage, (0, title_bar_height), symbolimage)
       draw.text((120, 50), str(info1), font=font_small, fill="#AAAAAA")
       draw.text((120, 70), str(info2), font=font_small, fill="#AAAAAA")
       draw.text((120, 90), str(info3), font=font_small, fill="#AAAAAA")
       draw.text((5, 144), str(info4), font=font_small, fill="#AAAAAA")
-      draw.text((5, height - font_epic.getsize("X")[1] - 3), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
+      #draw.text((5, height - font_epic.getsize("X")[1] - 3), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
+      draw.text((5, height - font_epic.getbbox("X")[3] - 3), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
   
       with display_lock:
           disp.image(image)
       time.sleep(1)
 
 
-# Display loops.  list of stations, or a single station on the screen at a time
+# list of stations on screen (no -o option on command line)
 def list_loop():
   call = "null"
   # position cursor in -1 slot, as the first thing the loop does is increment slot
-  y = padding + title_bar_height - font.getsize("ABCJQ")[1]  
+  #y = padding + title_bar_height - font.getsize("ABCJQ")[1]  
+  y = padding + title_bar_height - font.getbbox("ABCJQ")[3]  
   x = padding
   max_lines  = ( height - title_bar_height - padding )  //   line_height 
   max_cols = ( width // max_line_width )

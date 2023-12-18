@@ -4,9 +4,10 @@ import subprocess
 from socket import gethostname 
 from socket import gethostbyname
 from time import sleep
+from signal import pause
 
 # GPIO buttons, pi tft uses logical 23 and 24 gpio pins
-GPIO.setwarnings(False)
+#GPIO.setwarnings(False)
 GPIO.setmode(GPIO.BCM)
 GPIO.setup(23,GPIO.IN)
 GPIO.setup(24,GPIO.IN)
@@ -63,5 +64,8 @@ GPIO.add_event_detect(24,GPIO.FALLING,callback=button_callback_24,bouncetime=250
 GPIO.add_event_detect(23,GPIO.FALLING,callback=button_callback_23,bouncetime=2500)
 
 # better way of doing nothing without an import?
-while True:
-   sleep(10000000)
+
+pause()
+
+#while True:
+#   sleep(10000000)
