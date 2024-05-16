@@ -50,7 +50,8 @@ spi = board.SPI()
 
 # Use one and only one of these screen definitions:
 
-## half height adafruit screen 1.1" (240x135), two buttons
+## half height adafruit screen 1.1" (240x135), two buttons   
+## this screen isn't exactly supported any longer
 #disp = st7789.ST7789(
 #    board.SPI(),
 #    cs=cs_pin,
@@ -63,27 +64,27 @@ spi = board.SPI()
 #    rotation=270,
 #)
 
-# full height adafruit screen 1.3" (240x240), two buttons
-#disp = st7789.ST7789(
-#    spi,
-#    cs=cs_pin,
-#    dc=dc_pin,
-#    baudrate=BAUDRATE,
-#    height=240,
-#    y_offset=80,
-#    rotation=180
-#)
-
-# full height adafruit screen 2.8" (320x240), two buttons
-disp = ili9341.ILI9341(
+## full height adafruit screen 1.3" (240x240), two buttons
+disp = st7789.ST7789(
     spi,
     cs=cs_pin,
     dc=dc_pin,
     baudrate=BAUDRATE,
-    width=240,
-    height=320,
-    rotation=270
+    height=240,
+    y_offset=80,
+    rotation=180
 )
+
+## full height adafruit screen 2.8" (320x240), two buttons
+#disp = ili9341.ILI9341(
+#    spi,
+#    cs=cs_pin,
+#    dc=dc_pin,
+#    baudrate=BAUDRATE,
+#    width=240,
+#    height=320,
+#    rotation=270
+#)
 
 
 
@@ -160,18 +161,18 @@ font_big = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.
 font_tiny = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 18)
 
 # Draw a black filled box to clear the image.
-draw.rectangle((0, 0, width, height), outline=0, fill="#000000")
+draw.rectangle((0, 0, width, height), outline=(0,0,0), fill="#000000")
 
 if args["graphic"]:
    background = Image.open(args["graphic"])
    image.paste(background, (width - 120, 37), background)
 
-draw.rectangle((0, 0, width, 30), outline=0, fill="#333333")
+draw.rectangle((0, 0, width, 30), outline=(0,0,0), fill="#333333")
 draw.text(   (10  ,  0  ) , "DigiPi", font=font_big, fill="#888888")
 draw.text(   (10  ,  height * .28 )                                   , big,   font=font_huge, fill="#888888")
 draw.text(   (10  ,  height * .28 + font_big.getbbox("BgJ")[3] + 12 ) , small, font=font_big,  fill="#666666")
 draw.text(   (10  ,  height       - font_big.getbbox("BgJ")[3] - 4  ) , tiny,  font=font_tiny, fill="#666666")
 disp.image(image)
+image.save("/run/direwatch.png") 
 
 exit(0)
-
