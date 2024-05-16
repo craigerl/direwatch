@@ -74,6 +74,8 @@ import threading
 import signal
 import os
 import aprslib
+import math
+import numpy
 
 #Configuration for CS and DC pins (these are PiTFT defaults):
 #cs_pin = digitalio.DigitalInOut(board.CE0)
@@ -89,7 +91,7 @@ spi = board.SPI()
 
 # Use one and only one of these screen definitions:
 
-## half height adafruit screen 1.1" (240x135), two buttons
+## half height adafruit screen 1.1" (240x135), two buttons  
 #disp = st7789.ST7789(
 #    board.SPI(),
 #    cs=cs_pin,
@@ -102,13 +104,14 @@ spi = board.SPI()
 #    rotation=270,
 #)
 
-# full height adafruit screen 1.3" (240x240), two buttons
+## full height adafruit screen 1.3" (240x240), two buttons
 disp = st7789.ST7789(
     spi,
     cs=cs_pin,
     dc=dc_pin,
     baudrate=BAUDRATE,
     height=240,
+    width=240,
     y_offset=80,
     rotation=180
 )
@@ -142,6 +145,34 @@ draw = ImageDraw.Draw(image)
 padding = 4 
 title_bar_height = 34
 
+def get_direction(origin, destination):
+   lat1, lon1 = origin 
+   lat2, lon2 = destination
+   dLon = (lon2 - lon1)
+   x = math.cos(math.radians(lat2)) * math.sin(math.radians(dLon))
+   y = math.cos(math.radians(lat1)) * math.sin(math.radians(lat2)) - math.sin(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.cos(math.radians(dLon))
+   bearing = numpy.arctan2(x,y)
+   bearing = numpy.degrees(bearing)
+   bearing = (bearing + 360) % 360  # make positive
+   dirs = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW']
+   ix = int(round(bearing / (360. / len(dirs))))  
+   return dirs[ix % len(dirs)]
+   #return bearing
+
+def get_distance(origin, destination):
+   lat1, lon1 = origin
+   lat2, lon2 = destination
+   # radius = 6371  # km
+   radius = 3959    # miles
+   dlat = math.radians(lat2 - lat1)
+   dlon = math.radians(lon2 - lon1)
+   a = (math.sin(dlat / 2) * math.sin(dlat / 2) +
+        math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) *
+        math.sin(dlon / 2) * math.sin(dlon / 2))
+   c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+   d = radius * c
+   return d
+
 def signal_handler(signal, frame):
    print("Got ", signal, " exiting.")
    draw.rectangle((0, 0, width, height), outline=0, fill=(30,30,30))
@@ -160,6 +191,9 @@ def parse_arguments():
     ap.add_argument("-f", "--fontsize", required=False, help="Font size for callsigns")
     ap.add_argument("-t", "--title_text", required=False, help="Text displayed in title bar")
     ap.add_argument("-o", "--one", action='store_true', required=False, help="Show one station at a time full screen")
+    ap.add_argument("-y", "--lat", required=False, help="Your Latitude -123.4567")
+    ap.add_argument("-x", "--lon", required=False, help="Your Longitude  23.4567")
+    ap.add_argument("-s", "--savefile", required=False, help="Save screen updates to png file")
     args = vars(ap.parse_args())
     return args
 
@@ -180,8 +214,22 @@ if args["title_text"]:
 else:
    title_text = "Direwatch"
 
+if args["lat"]:
+   lat1 = float(args["lat"])
+else:
+   lat1 = 0
 
-# LED threads, bluetooth, RED, GREE"N
+if args["lon"]:
+   lon1 = float(args["lon"])
+else:
+   lon1 = 0 
+
+if args["savefile"]:
+   savefile = args["savefile"]
+else:
+   savefile = None 
+
+# LED threads, bluetooth, RED, GREEN
 
 def bluetooth_connection_poll_thread():
     bt_status = 0
@@ -224,11 +272,11 @@ def red_led_from_logfile_thread():                               ## RED logfile
       line = f.stdout.readline().decode("utf-8", errors="ignore")
       search = re.search("^\[\d[A-Z]\]", line)
       if search is not None:
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,0))
+         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,255))
          with display_lock:
             disp.image(image)
          time.sleep(1)
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,0))
+         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,255))
          with display_lock:
             disp.image(image)
 
@@ -236,9 +284,9 @@ def handle_changeG(cb):
    with open('/sys/class/gpio/gpio16/value', 'r') as f:          ## GREEN
       status = f.read(1)
       if status == '0':
-         draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,80,0,0))
+         draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,80,0,255))
       else:
-         draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,200,0,0))
+         draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,200,0,255))
       with display_lock:
          disp.image(image)
    f.close
@@ -248,9 +296,9 @@ def handle_changeR(cb):
    with open('/sys/class/gpio/gpio12/value', 'r') as f:          ## RED GPIO
       status = f.read(1)
       if status == '0':
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,0))
+         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,255))
       else:
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,0))
+         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,255))
          pass
       with display_lock:
          disp.image(image)
@@ -331,7 +379,7 @@ with display_lock:
 time.sleep(1)
 
 # erase the screen
-draw.rectangle((0, 0, width, height), outline=0, fill="#000000")
+draw.rectangle((0, 0, width, height), outline=(0,0,0), fill="#000000")
 
 # draw the header bar
 draw.rectangle((0, 0, width, title_bar_height), fill=(30, 30, 30))
@@ -342,13 +390,14 @@ bticon = Image.open('bt.small.off.png')
 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
 
 # draw Green LED
-draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,80,0,0))
+draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,80,0,255))
 
 # draw Red LED
-draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,0))
+draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,255))
 
 with display_lock:
     disp.image(image)
+    if savefile: image.save(savefile) 
 
 # fire up green/red led threads
 watch_threadG.start()
@@ -398,8 +447,8 @@ def single_loop():
          search = re.search("^\[\d\.*\d*\] ([a-zA-Z0-9-]*)", line)      # snag callsign from unsupported packet
          if search is not None:
             call = search.group(1) 
-            symbol = '/'                                                # unsupported packet symbol set to red ball
-            symbol_table = '/'
+            symbol = '/'                                                # unsupported packet symbol set to bronze ball
+            symbol_table = '/' 
          else:
             continue
 
@@ -415,18 +464,29 @@ def single_loop():
          if not supported_packet:                                      
                info1 = info2 = info3 = info4 = ''                       # no info in unsupported packet
          elif 'weather' in packet:                                      # weather (often contained in compressed/uncompressed type packets)
-            info1 = round(packet['weather']['temperature'])
-            info1 = str(int(info1) * 1.8 + 32) + 'F'
-            #print(info1)
-            info2 = str(packet['weather']['rain_since_midnight']) + '\" rain'
-            #print(info2)
-            info3 = str(round(packet['weather']['wind_speed'])) + ' m/h'
-            info3 = info3 + ' ' + str(packet['weather']['wind_direction']) + '\''
-            #print(info3)
+            lat2 = packet['latitude']
+            lon2 = packet['longitude']
+            if lat1:
+               distance = get_distance((lat1,lon1),(lat2,lon2))
+               direction = get_direction((lat1,lon1),(lat2,lon2))   
+               info1 = str(round(distance)) + "mi " + direction
+            else:
+               info1 = ""
+            info2 = round(packet['weather']['temperature'])
+            info2 = str(round(int(info2) * 1.8 + 32)) + 'F'
+            info3 = ""
             info4 = str(packet['comment'])
             #print(info4)                                               # position packet
          elif packet['format'] == 'mic-e' or packet['format'] == 'compressed'  or packet['format'] == 'uncompressed' or packet['format'] == 'object':  
             info4 = re.sub('^[^0-9a-zA-Z]*', '', packet['comment'])     # get rid of leading punctuation
+            lat2 = packet['latitude']
+            lon2 = packet['longitude']
+            if lat1:
+               distance = get_distance((lat1,lon1),(lat2,lon2))
+               direction = get_direction((lat1,lon1),(lat2,lon2))
+               info1 = str(round(distance)) + "mi " + direction
+            else:
+               info1 = ""
          elif 'status' in packet:                                       # status packet
             info4 = re.sub('^[^0-9a-zA-Z]+', '', packet['status'])      # get rid of leading punctuation
       except Exception as e:
@@ -438,7 +498,7 @@ def single_loop():
       col = offset % 16 
       y = height // 3 
       x = width // 3  
-      draw.rectangle((0, title_bar_height, width, height), outline=0, fill="#000000")  # erase most of screen
+      draw.rectangle((0, title_bar_height, width, height), fill="#000000")  # erase most of screen
       crop_area = (col*symbol_dimension, row*symbol_dimension, col*symbol_dimension+symbol_dimension, row*symbol_dimension+symbol_dimension)
       if symbol_table == '/':
          symbolimage = symbol_chart0x64.crop(crop_area)
@@ -455,6 +515,8 @@ def single_loop():
   
       with display_lock:
           disp.image(image)
+          if savefile: image.save(savefile) 
+
       time.sleep(1)
 
 
@@ -543,6 +605,7 @@ def list_loop():
        line_count += 1
        with display_lock:
            disp.image(image)
+           if savefile: image.save(savefile) 
 
 if args["one"]:
    single_loop()
@@ -551,4 +614,3 @@ else:
 
 
 exit(0)
-
