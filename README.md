@@ -32,6 +32,9 @@ respectively.  Configure these gpio pins in direwolf.
 For Pi5, use digibuttons.gpiod.py, for other Pi's use digibuttons.rpigpio.py or digibuttons.gpiozero .
 
 
+![Ygate with Direwatch](http://craiger.org/ygatescreen.png)
+
+
 Installation on raspbian/buster for short-attentions span programmers like me:
 ```
 Installation on raspbian/bullseye for short-attentions span programmers like me:
