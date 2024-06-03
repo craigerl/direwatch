@@ -4,7 +4,8 @@ by KM6LYW
 Display direwolf/APRS/packet information on small/adafruit TFT display (and/or png file).
 
 ```
-direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20  
+usage:   direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE]
+example: direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20
 ```
 Demonstration:  https://m.youtube.com/watch?v=W_V4wE3F5GM
 
