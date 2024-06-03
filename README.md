@@ -22,7 +22,6 @@ options:
                         Save screen updates to png file
 
 ```
-Demonstration:  https://m.youtube.com/watch?v=W_V4wE3F5GM
 
 Newer demonstration (with symbols):  https://www.youtube.com/watch?v=NJ_IJNU7NA0&t=7s
 
