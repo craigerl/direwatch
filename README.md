@@ -1,7 +1,7 @@
 # direwatch
 by KM6LYW
 
-Display direwolf/APRS/packet information on small/adafruit TFT display (or png file).
+Display direwolf/APRS/packet information on small/adafruit TFT display (and/or png file).
 
 ```
 direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20  
