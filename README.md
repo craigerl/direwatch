@@ -4,8 +4,23 @@ by KM6LYW
 Display direwolf/APRS/packet information on small/adafruit TFT display (and/or png file).
 
 ```
-usage:   direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE]
 example: direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20
+
+usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE]
+
+options:
+  -h, --help            show this help message and exit
+  -l LOG, --log LOG     Direwolf log file location
+  -f FONTSIZE, --fontsize FONTSIZE
+                        Font size for callsigns
+  -t TITLE_TEXT, --title_text TITLE_TEXT
+                        Text displayed in title bar
+  -o, --one             Show one station at a time full screen
+  -y LAT, --lat LAT     Your Latitude -123.4567
+  -x LON, --lon LON     Your Longitude 23.4567
+  -s SAVEFILE, --savefile SAVEFILE
+                        Save screen updates to png file
+
 ```
 Demonstration:  https://m.youtube.com/watch?v=W_V4wE3F5GM
 
