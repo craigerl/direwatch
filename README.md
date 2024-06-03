@@ -10,7 +10,7 @@ usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x 
 
 options:
   -h, --help            show this help message and exit
-  -l LOG, --log LOG     Direwolf log file location
+  -l LOG, --log LOG     Direwolf or ygate log file location
   -f FONTSIZE, --fontsize FONTSIZE
                         Font size for callsigns
   -t TITLE_TEXT, --title_text TITLE_TEXT
