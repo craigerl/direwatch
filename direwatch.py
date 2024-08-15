@@ -510,8 +510,7 @@ def single_loop():
       draw.text((120, 70), str(info2), font=font_small, fill="#AAAAAA")
       draw.text((120, 90), str(info3), font=font_small, fill="#AAAAAA")
       draw.text((5, 144), str(info4), font=font_small, fill="#AAAAAA")
-      #draw.text((5, height - font_epic.getsize("X")[1] - 3), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
-      draw.text((5, height - font_epic.getbbox("X")[3] - 8), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
+      draw.text((5, height - font_epic.getbbox("J")[3]), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
   
       with display_lock:
           disp.image(image)
