@@ -50,27 +50,35 @@ For Pi5, use digibuttons.gpiod.py, for other Pi's use digibuttons.rpigpio.py or 
 ![Ygate with Direwatch](http://craiger.org/ygatescreen.png)
 
 
-Installation on raspbian/buster for short-attentions span programmers like me:
+Installation on Raspberry Pi OS Bookworm, including optional rtl-sdr receiver:
 ```
-Installation on raspbian/bullseye for short-attentions span programmers like me:
-  sudo apt-get install python3-pip   # python >= 3.6 required
-  sudo apt-get install gpiozero
-  sudo pip3 install adafruit-circuitpython-rgb-display
-  sudo pip3 install pyinotify
-  sudo apt-get install python3-dev python3-rpi.gpio
-  vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
-  sudo pip3 install --upgrade adafruit-python-shell
-  wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
-  sudo python3 raspi-blinka.py   ## this gets the digitalio python module
-  sudo pip install aprslib     ## so we can parse ax.25 packets
+apt-get update
+apt-get install direwolf rtl-sdr git adafruit-circuitpython-rgb-display python3-pip fonts-dejavu  python3-pil python3-pyinotify python3-numpy
+sudo pip3  install --break-system-packages adafruit-circuitpython-rgb-display
+sudo pip3  install --break-system-packages aprslib
 
-Installation on raspbian/bookworm
-   sudo rm -rf /usr/lib/python3.11/EXTERNALLY-MANAGED
-   sudo pip3 install Adafruit-Blinka
-   sudo pip3 install python3-numpy
-   sudo pip3 install adafruit-circuitpython-rgb-display
-   sudo pip3 install aprslib
-   vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
+git clone https://github.com/craigerl/direwatch.git
+
+sudo nano /boot/firmware/config.txt  # uncomment spi
+dtparam=spi=on
+
+(reboot)
+
+
+cat > direwolf.conf
+MYCALL NOCALL
+IGSERVER noam.aprs2.net
+IGLOGIN NOCALL 12345
+PBEACON sendto=IG compress=1 delay=00:15 every=30:00 symbol="igate" overlay=X lat=39.911 long=-121.935 comment="Direwatch Rx-only igate"
+AGWPORT 8000
+KISSPORT 8001
+ADEVICE null
+
+(ctrl-D)
+
+
+rtl_fm  -s 22050 -g 49 -f 144.39M 2> /dev/null | direwolf -c direwolf.conf -t 0 -r 22050  -   > direwolf.log &
+./direwatch.py -o  -l direwolf.log -t "APRS"
 
 ```
 
