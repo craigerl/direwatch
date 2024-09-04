@@ -78,8 +78,8 @@ KISSPORT 8001
 ADEVICE null
 """"""""""""""""""""""
 
-
-rtl_fm  -s 22050 -g 49 -f 144.39M 2> /dev/null | direwolf -c direwolf.conf -t 0 -r 22050  -   > direwolf.log &
+cd direwatch
+rtl_fm  -s 22050 -g 49 -f 144.39M 2> /dev/null | direwolf -t 0 -r 22050  -   > direwolf.log &
 ./direwatch.py -o  -l direwolf.log -t "APRS"
 
 ```
