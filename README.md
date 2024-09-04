@@ -60,12 +60,15 @@ sudo pip3  install --break-system-packages aprslib
 git clone https://github.com/craigerl/direwatch.git
 
 sudo nano /boot/firmware/config.txt  # uncomment spi
+"""""""""""""""""
 dtparam=spi=on
+"""""""""""""""""
 
 (reboot)
 
 
-cat > direwolf.conf
+nano direwolf.conf
+""""""""""""""""""""""
 MYCALL NOCALL
 IGSERVER noam.aprs2.net
 IGLOGIN NOCALL 12345
@@ -73,8 +76,7 @@ PBEACON sendto=IG compress=1 delay=00:15 every=30:00 symbol="igate" overlay=X la
 AGWPORT 8000
 KISSPORT 8001
 ADEVICE null
-
-(ctrl-D)
+""""""""""""""""""""""
 
 
 rtl_fm  -s 22050 -g 49 -f 144.39M 2> /dev/null | direwolf -c direwolf.conf -t 0 -r 22050  -   > direwolf.log &
