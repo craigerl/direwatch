@@ -50,13 +50,13 @@ For Pi5, use digibuttons.gpiod.py, for other Pi's use digibuttons.rpigpio.py or 
 ![Ygate with Direwatch](http://craiger.org/ygatescreen.png)
 
 
-Shopping list for a PiZero2W solution
+Shopping list for a PiZero2W SDR APRS receive-only igate
 
-$18 pizero 2w with headers https://www.adafruit.com/product/6008
-$4  USB adapter cable      https://amazon.com/UGREEN-Adapter-Samsung-Controller-Android/dp/B00N9S9Z0G
-$31 RTL-SDR                https://amazon.com/RTL-SDR-Blog-RTL2832U-Software-Defined/dp/B0CD745394
-$32 Antenna                https://www.ebay.com/itm/321819895073?_nkw=n9tax&itmmeta=01J6YZSM7069JH3ZSYV3X1XS0Q
-$14 Display                https://www.amazon.com/DIYmall-Display-240x240-Raspberry-ST7789/dp/B08F9VD2GZ
+- $18 pizero 2w with headers https://www.adafruit.com/product/6008
+- $4  USB adapter cable      https://amazon.com/UGREEN-Adapter-Samsung-Controller-Android/dp/B00N9S9Z0G
+- $31 RTL-SDR                https://amazon.com/RTL-SDR-Blog-RTL2832U-Software-Defined/dp/B0CD745394
+- $32 Antenna                https://www.ebay.com/itm/321819895073?_nkw=n9tax&itmmeta=01J6YZSM7069JH3ZSYV3X1XS0Q
+- $14 Display                https://www.amazon.com/DIYmall-Display-240x240-Raspberry-ST7789/dp/B08F9VD2GZ
 
 
 
