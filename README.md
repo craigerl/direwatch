@@ -63,7 +63,7 @@ Shopping list for a PiZero2W SDR APRS receive-only igate
 Installation on Raspberry Pi OS Bookworm, including optional rtl-sdr receiver:
 ```
 apt-get update
-apt-get install direwolf rtl-sdr git adafruit-circuitpython-rgb-display python3-pip fonts-dejavu  python3-pil python3-pyinotify python3-numpy
+apt-get install direwolf rtl-sdr git python3-pip fonts-dejavu  python3-pil python3-pyinotify python3-numpy
 sudo pip3  install --break-system-packages adafruit-circuitpython-rgb-display
 sudo pip3  install --break-system-packages aprslib
 
