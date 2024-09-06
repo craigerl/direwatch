@@ -82,7 +82,7 @@ nano direwolf.conf
 MYCALL NOCALL
 IGSERVER noam.aprs2.net
 IGLOGIN NOCALL 12345
-PBEACON sendto=IG compress=1 delay=00:15 every=30:00 symbol="igate" overlay=X lat=39.911 long=-121.935 comment="Direwatch Rx-only igate"
+PBEACON sendto=IG compress=1 delay=00:15 every=30:00 symbol="igate" overlay=X lat=40.911 long=-122.935 comment="Direwatch Rx-only igate"
 AGWPORT 8000
 KISSPORT 8001
 ADEVICE null
