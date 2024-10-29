@@ -51,7 +51,7 @@ Red/Green indicators use direwolf's log file, be sure to add "-d o" to
 the direwolf command line for this feature to work.
 
 
-![Ygate with Direwatch](http://craiger.org/ygatescreen.png)
+![Ygate with Direwatch](http://craiger.org/direwatch.png)
 
 
 Shopping list for a PiZero2W SDR APRS receive-only igate
