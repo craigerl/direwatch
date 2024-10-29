@@ -3,7 +3,7 @@
 # direwatch
 
 """
-Craig Lamparter KM6LYW,  2024, MIT Licnese
+Craig Lamparter KM6LYW,  2025, MIT Licnese
 
 Code derived from Adafruit PIL python example
 
@@ -12,22 +12,22 @@ Usage:
   (-o option displays one station at a time, full screen)
 
 This will tail a direwolf log file and display callsigns on an
-adafruit ST7789 or ILI9341 tft display 
+adafruit ST7789, ILI9341, ILI9486 tft display 
 
   https://www.adafruit.com/product/4484  
   https://www.adafruit.com/product/2423
+  https://www.amazon.com/Resistive-Screen-IPS-Resolution-Controller/dp/B07V9WW96D
 
 More information on the ST7789 display is here:
 
 https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup
 
-Current configuration is for the 240x240 ST7789 unit.
+One of three display types should be specified on the command line
+   st7789
+   ili9341
+   ili9486
 
-Uncomment one, and only one of the display definitions below depending
-on your display st7789-240x135,  st7789-240x240, or ili9341-240x320.  Other
-screens may or may not work, we're all counting on you, good luck.
-
-SPI interface must be enabled in config.txt or in raspi-config
+SPI interface must be enabled in /boot/firmware/config.txt or in raspi-config
 
 Do not install the kernel module/framebuffer.
 
@@ -36,11 +36,11 @@ Configure these gpio pins in direwolf.
 
 Installation on raspbian/bullseye for short-attentions span programmers like me:
   sudo apt-get install python3-pip   # python >= 3.6 required
-  sudo apt-get install gpiozero
+  #sudo apt-get install gpiozero
   sudo pip3 install adafruit-circuitpython-rgb-display
   sudo pip3 install pyinotify
-  sudo apt-get install python3-dev python3-rpi.gpio
-  vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
+  sudo apt-get install python3-dev python3-rpi.gpio python3-lgpio
+  vi /boot/firmware/config.txt  # uncomment following line: "dtparam=spi=on"
   sudo pip3 install --upgrade adafruit-python-shell
   wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
   sudo python3 raspi-blinka.py   ## this gets the digitalio python module
@@ -52,11 +52,14 @@ Installation on raspbian/bookworm
    sudo pip3 install python3-numpy
    sudo pip3 install adafruit-circuitpython-rgb-display
    sudo pip3 install aprslib
-   vi /boot/config.txt  # uncomment following line: "dtparam=spi=on"
 
 Much code taken from ladyada for her great work driving these devices,
+
+Included ILI9486 python library taken from https://github.com/SirLefti/Python_ILI9486
+
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
+
 """
 
 import argparse
@@ -68,8 +71,10 @@ from PIL import Image, ImageDraw, ImageFont
 import re
 import adafruit_rgb_display.st7789 as st7789  
 import adafruit_rgb_display.ili9341 as ili9341 
+#import ILI9486_gpiod as ili9486
+import ILI9486 as ili9486
 import pyinotify
-from gpiozero import LED
+import gpiod
 import threading
 import signal
 import os
@@ -77,73 +82,133 @@ import aprslib
 import math
 import numpy
 
-#Configuration for CS and DC pins (these are PiTFT defaults):
-#cs_pin = digitalio.DigitalInOut(board.CE0)
-#dc_pin = digitalio.DigitalInOut(board.D25)
-dc_pin = digitalio.DigitalInOut(board.D25)
-cs_pin = digitalio.DigitalInOut(board.D4)
-
 # Config for display baudrate (default max is 24mhz):
 BAUDRATE = 64000000
 
-# Setup SPI bus using hardware SPI:
-spi = board.SPI()
+def parse_arguments():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("-l", "--log", required=True, help="Direwolf log file location")
+    ap.add_argument("-f", "--fontsize", required=False, help="Font size for callsigns")
+    ap.add_argument("-t", "--title_text", required=False, help="Text displayed in title bar")
+    ap.add_argument("-o", "--one", action='store_true', required=False, help="Show one station at a time full screen")
+    ap.add_argument("-y", "--lat", required=False, help="Your Latitude -123.4567")
+    ap.add_argument("-x", "--lon", required=False, help="Your Longitude  23.4567")
+    ap.add_argument("-s", "--savefile", required=False, help="Save screen updates to png file")
+    ap.add_argument("-d", "--display", required=False, help="st7789, ili9341, or ili9486")
+    args = vars(ap.parse_args())
+    return args
 
-# Use one and only one of these screen definitions:
+args = parse_arguments()
+logfile = args["log"]
+if args["fontsize"]:
+   # 30 puts 6 lines
+   # 33 puts 5 lines, max width
+   fontsize = int(args["fontsize"])
+else:
+   fontsize = 30   # default 30
+if args["title_text"]:
+   title_text = args["title_text"]
+else:
+   title_text = "Direwatch"
 
-## half height adafruit screen 1.1" (240x135), two buttons  
-#disp = st7789.ST7789(
-#    board.SPI(),
-#    cs=cs_pin,
-#    dc=dc_pin,
-#    baudrate=BAUDRATE,
-#    width=135,
-#    height=240,
-#    x_offset=53,
-#    y_offset=40,
-#    rotation=270,
-#)
+if args["lat"]:
+   lat1 = float(args["lat"])
+else:
+   lat1 = 0
 
-## full height adafruit screen 1.3" (240x240), two buttons
-disp = st7789.ST7789(
-    spi,
-    cs=cs_pin,
-    dc=dc_pin,
-    baudrate=BAUDRATE,
-    height=240,
-    width=240,
-    y_offset=80,
-    rotation=180
-)
+if args["lon"]:
+   lon1 = float(args["lon"])
+else:
+   lon1 = 0
 
-## Large wide-screen adafruit screen 2.8" (320x240), two buttons
-#disp = ili9341.ILI9341(
-#    spi,
-#    cs=cs_pin,
-#    dc=dc_pin,
-#    baudrate=BAUDRATE,
-#    width=240,
-#    height=320,
-#    rotation=270
-#)
+if args["savefile"]:
+   savefile = args["savefile"]
+else:
+   savefile = None
 
+if args["display"]:
+   displaytype = args["display"]
+else:
+   displaytype = st7789
+
+if displaytype == 'ili9341':
+   ## Large wide-screen adafruit screen 2.8" (320x240), two buttons
+   spi = board.SPI()
+   dc_pin = digitalio.DigitalInOut(board.D25)
+   cs_pin = digitalio.DigitalInOut(board.D4)
+   disp = ili9341.ILI9341(
+       spi,
+       cs=cs_pin,
+       dc=dc_pin,
+       baudrate=BAUDRATE,
+       width=240,
+       height=320,
+       rotation=270
+   )
+elif displaytype == 'ili9486':
+   ## Largest ili9486 display, no buttons
+   from spidev import SpiDev
+   spi = SpiDev(0,0)
+   spi.mode = 0b10  
+   spi.max_speed_hz = 64000000
+   disp = ili9486.ILI9486(
+       spi=spi,
+       rst=25,
+       dc=24,
+       origin=ili9486.Origin.LOWER_RIGHT
+   ).begin()
+   disp.invert()
+else:
+   ## square adafruit screen 1.3" (240x240), two buttons
+   dc_pin = digitalio.DigitalInOut(board.D25)
+   cs_pin = digitalio.DigitalInOut(board.D4)
+   spi = board.SPI()
+   disp = st7789.ST7789(
+       spi,
+       cs=cs_pin,
+       dc=dc_pin,
+       baudrate=BAUDRATE,
+       height=240,
+       width=240,
+       y_offset=80,
+       rotation=180
+   )
 
 # don't write to display concurrently with thread
 display_lock = threading.Lock()
 
 # Create image and drawing object
-if disp.rotation % 180 == 90:
-    height = disp.width  # we swap height/width to rotate it to landscape!
-    width = disp.height
-else:
-    width = disp.width  # we swap height/width to rotate it to landscape!
-    height = disp.height
+if displaytype == 'st7789' or displaytype == 'ili9341':
+   if disp.rotation % 180 == 90:
+       height = disp.width    
+       width = disp.height
+   else:
+       width = disp.width     
+       height = disp.height
+elif displaytype == 'ili9486': 
+   width=480
+   height=320
+else:                         # sane default
+   width=240
+   height=240
+
+#ili9486 must be in RGB format, no Alpha channel
 image = Image.new("RGBA", (width, height))
+#image = Image.new("RGB", (width, height))
 draw = ImageDraw.Draw(image)
 
 # define some constants to help with graphics layout
 padding = 4 
 title_bar_height = 34
+
+if os.path.exists('/dev/gpiochip4'):
+   gpiochip = gpiod.Chip('gpiochip4')
+else:
+   gpiochip = gpiod.Chip('gpiochip0')
+blue_line = gpiochip.get_line(5)
+blue_line.request(consumer="blue", type=gpiod.LINE_REQ_DIR_OUT)
+red_line = gpiochip.get_line(26)
+red_line.request(consumer="red", type=gpiod.LINE_REQ_DIR_OUT)
 
 def get_direction(origin, destination):
    lat1, lon1 = origin 
@@ -178,64 +243,16 @@ def signal_handler(signal, frame):
    draw.rectangle((0, 0, width, height), outline=0, fill=(30,30,30))
    with display_lock:
        disp.image(image)
-   #sys.exit(0)  # thread ignores this
+   red_line.release()
+   blue_line.release()
    os._exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
 
-
-def parse_arguments():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("-l", "--log", required=True, help="Direwolf log file location")
-    ap.add_argument("-f", "--fontsize", required=False, help="Font size for callsigns")
-    ap.add_argument("-t", "--title_text", required=False, help="Text displayed in title bar")
-    ap.add_argument("-o", "--one", action='store_true', required=False, help="Show one station at a time full screen")
-    ap.add_argument("-y", "--lat", required=False, help="Your Latitude -123.4567")
-    ap.add_argument("-x", "--lon", required=False, help="Your Longitude  23.4567")
-    ap.add_argument("-s", "--savefile", required=False, help="Save screen updates to png file")
-    args = vars(ap.parse_args())
-    return args
-
-args = parse_arguments()
-logfile = args["log"]
-if args["fontsize"]:
-   # 30 puts 6 lines
-   # 33 puts 5 lines, max width
-   fontsize = int(args["fontsize"])
-   if fontsize > 33:
-      print("Look, this display isn't very wide, the maximum font size is 33pts, and you chose " + str(fontsize) + "?")
-      print("Setting to 33 instead.")
-      fontsize = 33 
-else:
-   fontsize = 30   # default 30
-if args["title_text"]:
-   title_text = args["title_text"]
-else:
-   title_text = "Direwatch"
-
-if args["lat"]:
-   lat1 = float(args["lat"])
-else:
-   lat1 = 0
-
-if args["lon"]:
-   lon1 = float(args["lon"])
-else:
-   lon1 = 0 
-
-if args["savefile"]:
-   savefile = args["savefile"]
-else:
-   savefile = None 
-
 # LED threads, bluetooth, RED, GREEN
-
-def bluetooth_connection_poll_thread():
+def bluetooth_connection_poll_thread():  #FIXME convert to libgpiod, not gpiozero
     bt_status = 0
-    #GPIO.setmode(GPIO.BCM)
-    #GPIO.setup(5, GPIO.OUT) 
-    blue_led = LED(5)
     time.sleep(2) # so screen initialization doesn't overdraw bluetooth as off
 
     while True:
@@ -245,8 +262,7 @@ def bluetooth_connection_poll_thread():
             if bt_status == 0:
                 bt_status = 1
                 bticon = Image.open('bt.small.on.png')   
-                #GPIO.output(5, GPIO.HIGH)
-                blue_led.on() 
+                blue_line.set_value(1) 
                 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
                 with display_lock:
                     disp.image(image)
@@ -254,8 +270,7 @@ def bluetooth_connection_poll_thread():
             if bt_status == 1:
                 bt_status = 0  
                 bticon = Image.open('bt.small.off.png')   
-                #GPIO.output(5, GPIO.LOW)
-                blue_led.off()
+                blue_line.set_value(0) 
                 image.paste(bticon, (width - title_bar_height * 3 + 12  , padding + 2 ), bticon)
                 with display_lock:
                     disp.image(image)
@@ -264,74 +279,35 @@ def bluetooth_connection_poll_thread():
 bluetooth_thread = threading.Thread(target=bluetooth_connection_poll_thread, name="btwatch")
 bluetooth_thread.start()
 
-def red_led_from_logfile_thread():                               ## RED logfile
-   #print("red led changing via logfile")
-   #f = subprocess.Popen(['tail','-F',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-   f = subprocess.Popen(['tail','-F',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+def redgreen_thread():                      ## change red or green status indicators and red diode
+   f = subprocess.Popen(['tail','-F','-n','10',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
    while True:
       line = f.stdout.readline().decode("utf-8", errors="ignore")
-      search = re.search("^\[\d[A-Z]\]", line)
+      search = re.match("^((?:DCD |PTT ).*)", line)
       if search is not None:
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,255))
+         status = search.group(1)
+         if status == 'DCD 0 = 1':
+            draw.ellipse(( width - title_bar_height     , padding,    width - padding * 2,                     title_bar_height - padding), fill=(0,200,0,255))
+         elif status == 'DCD 0 = 0':
+            draw.ellipse(( width - title_bar_height     , padding,    width - padding * 2,                     title_bar_height - padding), fill=(0,80,0,255))
+         elif status == 'PTT 0 = 1':
+            draw.ellipse(( width - title_bar_height * 2 , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,255))
+            #red_led.on()
+            red_line.set_value(1)
+         elif status == 'PTT 0 = 0':
+            draw.ellipse(( width - title_bar_height * 2 , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,255))
+            #red_led.off()
+            red_line.set_value(0)
+         else:
+            print("Unknown DCD/PTT event\n")
          with display_lock:
             disp.image(image)
-         time.sleep(1)
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,255))
-         with display_lock:
-            disp.image(image)
 
-def handle_changeG(cb):
-   with open('/sys/class/gpio/gpio16/value', 'r') as f:          ## GREEN
-      status = f.read(1)
-      if status == '0':
-         draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,80,0,255))
-      else:
-         draw.ellipse(( width - title_bar_height               , padding,       width - padding * 2,                  title_bar_height - padding), fill=(0,200,0,255))
-      with display_lock:
-         disp.image(image)
-   f.close
-
-def handle_changeR(cb):
-   #print("red led changing via gpio")
-   with open('/sys/class/gpio/gpio12/value', 'r') as f:          ## RED GPIO
-      status = f.read(1)
-      if status == '0':
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(80,0,0,255))
-      else:
-         draw.ellipse(( width - title_bar_height * 2           , padding,    width - title_bar_height - padding * 2 , title_bar_height - padding), fill=(200,0,0,255))
-         pass
-      with display_lock:
-         disp.image(image)
-   f.close
-
-def null_function(junk):  # default callback prints tons of debugging info
-   return()
-
-# Instanciate a new WatchManager (will be used to store watches).
-wmG = pyinotify.WatchManager()
-wmR = pyinotify.WatchManager()
-
-# Associate this WatchManager with a Notifier
-notifierG = pyinotify.Notifier(wmG, default_proc_fun=null_function)
-notifierR = pyinotify.Notifier(wmR, default_proc_fun=null_function)
-
-# Watch both gpio pins for change if they exist
-wmG.add_watch('/sys/class/gpio/gpio16/value', pyinotify.IN_MODIFY)
-if os.path.exists("/sys/class/gpio/gpio12/value"):
-   wmR.add_watch('/sys/class/gpio/gpio12/value', pyinotify.IN_MODIFY)
-
-watch_threadG = threading.Thread(target=notifierG.loop, name="led-watcherG", kwargs=dict(callback=handle_changeG))
-
-# Use gpio pin for red led if it exists, otherwise watch log file for transmit activity
-if os.path.exists("/sys/class/gpio/gpio12/value"):
-   watch_threadR = threading.Thread(target=notifierR.loop, name="led-watcherR", kwargs=dict(callback=handle_changeR))
-else:
-   watch_threadR = threading.Thread(target=red_led_from_logfile_thread, name="redledthreadlog")
+redgreen_thread = threading.Thread(target=redgreen_thread, name="rgwatch")
+redgreen_thread.start()
 
 
-# Load a TTF font.  Make sure the .ttf font file is in the
-# same directory as the python script!
-# Some other nice fonts to try: http://www.dafont.com/bitmap.php
+# Load a TTF font. 
 fontname = "DejaVuSans.ttf"
 fontname_bold = "DejaVuSans-Bold.ttf"
 if os.path.exists("/usr/share/fonts/truetype/dejavu/" + fontname):
@@ -348,32 +324,30 @@ elif os.path.exists("./" + fontname_bold):
 else:
    print("Couldn't find font " +  fontname_bold + " in working dir or /usr/share/fonts/truetype/dejavu/")
    exit(1)
+
+if displaytype == 'ili9486':
+   bump = 10
+else:
+   bump = 0
+
+#font(no suffix) is defined on command line, used in list mode
 font = ImageFont.truetype(fontpath, fontsize)
-font_small = ImageFont.truetype(fontpath_bold, 18)
-font_big = ImageFont.truetype(fontpath_bold, 24)
-font_huge = ImageFont.truetype(fontpath_bold, 34)
-font_epic = ImageFont.truetype(fontpath, 40)
-line_height = font.getbbox("ABCJQ")[3] - 1          # tallest callsign, with dangling J/Q tails
+font_small = ImageFont.truetype(fontpath_bold, 18 + bump)
+font_big = ImageFont.truetype(fontpath_bold, 24)            # title bar font
+font_huge = ImageFont.truetype(fontpath_bold, 34 + bump)
+font_epic = ImageFont.truetype(fontpath_bold, 38 + bump)
 
-
-# load and scale symbol chart based on font height
-symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
-symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
-#fontvertical = font.getsize("XXX")[1]
-fontvertical = font.getbbox("ABCJQ")[3]       # tallest callsign, with dangling J/Q tails
-symbol_chart0x64.thumbnail(((fontvertical + fontvertical // 8) * 16, (fontvertical + fontvertical // 8) * 6)) # nudge larger than font, into space between lines
-symbol_chart1x64.thumbnail(((fontvertical + fontvertical // 8) * 16, (fontvertical + fontvertical // 8) * 6)) # nudge larger than font, into space between lines
-symbol_dimension = symbol_chart0x64.width//16
-
-max_line_width = font.getbbox("KN6MUC-15")[2] + symbol_dimension + (symbol_dimension // 8)   # longest callsign i can think of in pixels, plus symbo width + space
-max_cols = width // max_line_width
+# load symbol chart based on font height
+symbol_chart0x128 = Image.open("aprs-symbols-128-0.png")
+symbol_chart1x128 = Image.open("aprs-symbols-128-1.png")
+symbol_dimension = 128
 
 # Draw a black filled box to clear the image.
 draw.rectangle((0, 0, width, height), outline=0, fill="#000000")
 
 # Draw our logo
 h = font.getbbox(title_text)[3]
-draw.text(   (padding * 3  ,  height // 2 - h) ,   title_text, font=font_huge,   fill="#99AA99")
+draw.text(   (padding * 3  ,  height // 2 - h) ,   title_text, font=font_huge,   fill="#999999")
 with display_lock:
     disp.image(image)
 time.sleep(1)
@@ -383,7 +357,7 @@ draw.rectangle((0, 0, width, height), outline=(0,0,0), fill="#000000")
 
 # draw the header bar
 draw.rectangle((0, 0, width, title_bar_height), fill=(30, 30, 30))
-draw.text((padding, padding), title_text, font=font_big, fill="#99AA99")
+draw.text((padding, padding), title_text, font=font_big, fill="#999999")
 
 # draw the bluetooth icon
 bticon = Image.open('bt.small.off.png')
@@ -397,29 +371,27 @@ draw.ellipse(( width - title_bar_height * 2           , padding,    width - titl
 
 with display_lock:
     disp.image(image)
-    if savefile: image.save(savefile) 
+    if savefile: image.save(savefile, compress_level=0) 
 
 # fire up green/red led threads
-watch_threadG.start()
-watch_threadR.start()
+#watch_threadG.start()
+#watch_threadR.start()
 
-# setup screen geometries
+# setup geometry defaults
 call = "null"
 x = padding
-max_lines  = ( height - title_bar_height - padding )  //   line_height 
-max_cols = ( width // max_line_width )
 line_count = 0
 col_count = 0 
 
 # tail and block on the log file
 f = subprocess.Popen(['tail','-F','-n','10',logfile], stdout=subprocess.PIPE,stderr=subprocess.PIPE)
 
-# Display loops.  list of stations, or a single station on the screen at a time
-
 # single loop, display one station at a time full screen, when using "-o" option on command line
 def single_loop():
-   symbol_chart0x64 = Image.open("aprs-symbols-64-0.png")
-   symbol_chart1x64 = Image.open("aprs-symbols-64-1.png")
+
+   # contstants
+   infotopmargin = title_bar_height + ( padding * 4 )
+   infolinespacing = font_small.getbbox("ABCJQ")[3] + padding
 
    # we try to get callsign, symbol and four relevant info lines from every packet
    while True:
@@ -437,11 +409,9 @@ def single_loop():
   
       try:  
          packet = aprslib.parse(packetstring)                           # parse packet
-         #print(packet)
          call = packet['from']
          supported_packet = True 
       except Exception as e:                                            # aprslib doesn't support all packet types
-         #print("Exception: aprslib: ", str(e), ": ", packetstring)
          supported_packet = False
          packet = {}   
          search = re.search("^\[\d\.*\d*\] ([a-zA-Z0-9-]*)", line)      # snag callsign from unsupported packet
@@ -476,7 +446,6 @@ def single_loop():
             info2 = str(round(int(info2) * 1.8 + 32)) + 'F'
             info3 = ""
             info4 = str(packet['comment'])
-            #print(info4)                                               # position packet
          elif packet['format'] == 'mic-e' or packet['format'] == 'compressed'  or packet['format'] == 'uncompressed' or packet['format'] == 'object':  
             info4 = re.sub('^[^0-9a-zA-Z]*', '', packet['comment'])     # get rid of leading punctuation
             lat2 = packet['latitude']
@@ -492,29 +461,30 @@ def single_loop():
       except Exception as e:
          print("Malformed/missing data: ", str(e), ": ", packetstring)
 
-      symbol_dimension = 64
       offset = ord(symbol) - 33
       row = offset // 16 
       col = offset % 16 
-      y = height // 3 
-      x = width // 3  
       draw.rectangle((0, title_bar_height, width, height), fill="#000000")  # erase most of screen
       crop_area = (col*symbol_dimension, row*symbol_dimension, col*symbol_dimension+symbol_dimension, row*symbol_dimension+symbol_dimension)
       if symbol_table == '/':
-         symbolimage = symbol_chart0x64.crop(crop_area)
+         symbolimage = symbol_chart0x128.crop(crop_area)
       else:
-         symbolimage = symbol_chart1x64.crop(crop_area)
-      symbolimage = symbolimage.resize((height // 2, height // 2), Image.NEAREST)
+         symbolimage = symbol_chart1x128.crop(crop_area)
+      #symbolimage = symbolimage.resize((height // 2, height // 2), Image.NEAREST)
+      if height >= 320:
+         symbolimage = symbolimage.resize((180, 180), Image.LANCZOS)
       image.paste(symbolimage, (0, title_bar_height), symbolimage)
-      draw.text((120, 50), str(info1), font=font_small, fill="#AAAAAA")
-      draw.text((120, 70), str(info2), font=font_small, fill="#AAAAAA")
-      draw.text((120, 90), str(info3), font=font_small, fill="#AAAAAA")
-      draw.text((5, 144), str(info4), font=font_small, fill="#AAAAAA")
+      infoleftmargin = symbolimage.width + padding
+      draw.text((infoleftmargin, infotopmargin),                         str(info1), font=font_small, fill="#AAAAAA")
+      draw.text((infoleftmargin, infotopmargin + infolinespacing),       str(info2), font=font_small, fill="#AAAAAA")
+      draw.text((infoleftmargin, infotopmargin + (infolinespacing * 2)), str(info3), font=font_small, fill="#AAAAAA")
+      statustopmargin = symbolimage.height + title_bar_height 
+      draw.text((5, statustopmargin), str(info4), font=font_small, fill="#AAAAAA")
       draw.text((5, height - font_epic.getbbox("J")[3]), call, font=font_epic, fill="#AAAAAA") # text up from bottom edge
   
       with display_lock:
           disp.image(image)
-          if savefile: image.save(savefile) 
+          if savefile: image.save(savefile, compress_level=0) 
 
       time.sleep(1)
 
@@ -522,10 +492,19 @@ def single_loop():
 # list of stations on screen (no -o option on command line)
 def list_loop():
   call = "null"
+
+  # scale symbols based on font height
+  fontvertical = font.getbbox("ABCJQ")[3]       # tallest callsign, with dangling J/Q tails
+  symbol_chart0x128.thumbnail(((fontvertical + fontvertical // 8) * 16, (fontvertical + fontvertical // 8) * 6)) # nudge larger than font, into space between lines
+  symbol_chart1x128.thumbnail(((fontvertical + fontvertical // 8) * 16, (fontvertical + fontvertical // 8) * 6)) # nudge larger than font, into space between lines
+  symbol_dimension = symbol_chart0x128.width//16
+  max_line_width = font.getbbox("KN6MUC-15")[2] + symbol_dimension + (symbol_dimension // 8)   # longest callsign i can think of in pixels, plus symbo width + space
+  max_cols = width // max_line_width
+
   # position cursor in -1 slot, as the first thing the loop does is increment slot
-  #y = padding + title_bar_height - font.getsize("ABCJQ")[1]  
   y = padding + title_bar_height - font.getbbox("ABCJQ")[3]  
   x = padding
+  line_height = font.getbbox("ABCJQ")[3] - 1          # tallest callsign, with dangling J/Q tails
   max_lines  = ( height - title_bar_height - padding )  //   line_height 
   max_cols = ( width // max_line_width )
   line_count = 0
@@ -596,20 +575,19 @@ def list_loop():
            time.sleep(2.0)
        crop_area = (col*symbol_dimension, row*symbol_dimension, col*symbol_dimension+symbol_dimension, row*symbol_dimension+symbol_dimension)
        if symbol_table == '/':
-          symbolimage = symbol_chart0x64.crop(crop_area)
+          symbolimage = symbol_chart0x128.crop(crop_area)
        else:
-          symbolimage = symbol_chart1x64.crop(crop_area)
+          symbolimage = symbol_chart1x128.crop(crop_area)
        image.paste(symbolimage, (x, y), symbolimage)
        draw.text((x + symbol_dimension + (symbol_dimension // 8) , y), call, font=font, fill="#AAAAAA") # start text after symbol, relative padding
        line_count += 1
        with display_lock:
            disp.image(image)
-           if savefile: image.save(savefile) 
+           if savefile: image.save(savefile, compress_level=0) 
 
-if args["one"]:
-   single_loop()
-else:
-   list_loop()
-
-
-exit(0)
+if __name__ == '__main__':
+   if args["one"]:
+      single_loop()
+   else:
+      list_loop()
+   os._exit(0)

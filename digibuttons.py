@@ -1,18 +1,16 @@
 #!/usr/bin/python3
-import RPi.GPIO as GPIO
+import select
+import gpiod
+import time
+import threading
 import subprocess
-from socket import gethostname 
-from socket import gethostbyname
-from time import sleep
 from signal import pause
+from os import getenv
+#from os import system
+from dotenv import load_dotenv
+from pathlib import Path
+from os import path
 
-# GPIO buttons, pi tft uses logical 23 and 24 gpio pins
-#GPIO.setwarnings(False)
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(23,GPIO.IN)
-GPIO.setup(24,GPIO.IN)
-
- 
 def button_callback_24(number):
     print("Button ",   number,  "  pressed.")
     if number == 24:                                       # start digipeater
@@ -32,8 +30,8 @@ def button_callback_24(number):
                 IP = "0.0.0.0"
             cmd = "sudo systemctl stop digipeater"
             cmd_output = subprocess.check_output(cmd, shell=True).decode("utf-8")
-            cmd = "sudo /home/pi/digibanner.py -b Standby -s " + IP
-            cmd_output = subprocess.check_output(cmd, shell=True).decode("utf-8")
+            subprocess.call(['/home/pi/digibanner.py', '-b', 'Standby', '-s', IP, '-d', getenv('NEWDISPLAYTYPE')])
+
     return(0)
 
 
@@ -56,16 +54,55 @@ def button_callback_23(number):
                 IP = "0.0.0.0"
             cmd = "sudo systemctl stop tnc"
             cmd_output = subprocess.check_output(cmd, shell=True).decode("utf-8")
-            cmd = "sudo /home/pi/digibanner.py -b Standby -s " + IP 
+            subprocess.call(['/home/pi/digibanner.py', '-b', 'Standby', '-s', IP, '-d', getenv('NEWDISPLAYTYPE')])
             cmd_output = subprocess.check_output(cmd, shell=True).decode("utf-8")
     return(0)
 
-GPIO.add_event_detect(24,GPIO.FALLING,callback=button_callback_24,bouncetime=2500)
-GPIO.add_event_detect(23,GPIO.FALLING,callback=button_callback_23,bouncetime=2500)
+def thread23():
+   lastcalltime = 0
+   if path.exists('/dev/gpiochip4'):
+      gpiochip = 'gpiochip4'
+   else:
+      gpiochip = 'gpiochip0'
+   chip = gpiod.Chip(gpiochip)
+   line23 = chip.get_line(23)
+   line23.request(consumer="GPIN", type=gpiod.LINE_REQ_EV_FALLING_EDGE, flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_UP)
+   fd23 = line23.event_get_fd()
+   poll = select.poll()
+   poll.register(fd23)
+   while True: 
+      event = line23.event_read()
+      if ((time.time() - lastcalltime) >= 1):  # one second debounce
+         lastcalltime = time.time()
+         button_callback_23(23)
 
-# better way of doing nothing without an import?
+def thread24():
+   lastcalltime = 0 
+   if path.exists('/dev/gpiochip4'):
+      gpiochip = 'gpiochip4'
+   else:
+      gpiochip = 'gpiochip0'
+   chip = gpiod.Chip(gpiochip)
+   line24 = chip.get_line(24)
+   line24.request(consumer="GPIN", type=gpiod.LINE_REQ_EV_FALLING_EDGE, flags=gpiod.LINE_REQ_FLAG_BIAS_PULL_UP)
+   fd24 = line24.event_get_fd()
+   poll = select.poll()
+   poll.register(fd24)
+   while True:
+      event = line24.event_read()
+      if ((time.time() - lastcalltime) >= 1):  # one second debounce
+         lastcalltime = time.time()
+         button_callback_24(24)
+
+
+dotenv_path = Path('/home/pi/localize.env')
+load_dotenv(dotenv_path=dotenv_path)
+
+t23 = threading.Thread(target=thread23)
+t23.start()
+
+t24 = threading.Thread(target=thread24)
+t24.start()
 
 pause()
 
-#while True:
-#   sleep(10000000)
