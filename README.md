@@ -6,11 +6,11 @@ Display direwolf/APRS/packet information on small/adafruit TFT display (and/or p
 ```
 example: direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20
 
-usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE]
+usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE] [-d screentype]
 
 options:
   -h, --help            show this help message and exit
-  -l LOG, --log LOG     Direwolf or ygate log file location
+  -l LOG, --log LOG     Direwolf log file location
   -f FONTSIZE, --fontsize FONTSIZE
                         Font size for callsigns
   -t TITLE_TEXT, --title_text TITLE_TEXT
@@ -20,6 +20,9 @@ options:
   -x LON, --lon LON     Your Longitude 23.4567
   -s SAVEFILE, --savefile SAVEFILE
                         Save screen updates to png file
+  -d DISPLAY, --display DISPLAY
+                        st7789, ili9341, or ili9486
+
 
 ```
 
