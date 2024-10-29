@@ -32,9 +32,9 @@ Craig Lamparter KM6LYW,  2021, MIT Licnese
 
 This will tail a direwolf log file and display callsigns on a small tft display:
 
-  https://www.adafruit.com/product/4484   (st7789)
-  https://www.adafruit.com/product/2423   (ili9341) 
-  https://www.amazon.com/Resistive-Screen-IPS-Resolution-Controller/dp/B07V9WW96D  (ili9486)
+-  https://www.adafruit.com/product/4484   (st7789)
+-  https://www.adafruit.com/product/2423   (ili9341) 
+-  https://www.amazon.com/Resistive-Screen-IPS-Resolution-Controller/dp/B07V9WW96D  (ili9486)
 
 Three screens are supported st7789 240x240, ili9341 240x360, ili9486 320x480
 
