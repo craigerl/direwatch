@@ -30,11 +30,11 @@ Newer demonstration (with symbols):  https://www.youtube.com/watch?v=NJ_IJNU7NA0
 
 Craig Lamparter KM6LYW,  2021, MIT Licnese
 
-This will tail a direwolf log file and display callsigns on an
-adafruit st7789 tft display (https://www.adafruit.com/product/4484).
-Follow the instructions here to get the driver/library loaded:
+This will tail a direwolf log file and display callsigns on a small tft display:
 
-https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup
+  https://www.adafruit.com/product/4484   (st7789)
+  https://www.adafruit.com/product/2423   (ili9341) 
+  https://www.amazon.com/Resistive-Screen-IPS-Resolution-Controller/dp/B07V9WW96D  (ili9486)
 
 Three screens are supported st7789 240x240, ili9341 240x360, ili9486 320x480
 
