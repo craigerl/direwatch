@@ -22,10 +22,8 @@ from enum import Enum
 import time
 import numpy as np
 from PIL import Image, ImageDraw
-import RPi.GPIO as GPIO
+import gpiod
 from spidev import SpiDev
-
-GPIO.setmode(GPIO.BCM)
 
 # constants
 LCD_WIDTH = 320
@@ -115,12 +113,14 @@ class ILI9486:
         self.__inverted = False
         self.__idle = False
 
-        GPIO.setmode(GPIO.BCM)
-        GPIO.setup(self.__dc, GPIO.OUT)
-        GPIO.output(self.__dc, GPIO.HIGH)
+        chip = gpiod.Chip('gpiochip4')
+        self.__dc_line = chip.get_line(self.__dc)
+        self.__dc_line.request(consumer='dc', type=gpiod.LINE_REQ_DIR_OUT)
+        self.__dc_line.set_value(1)
+
         if self.__rst is not None:
-            GPIO.setup(self.__rst, GPIO.OUT)
-            GPIO.output(self.__rst, GPIO.HIGH)
+            self.__rst_line = chip.get_line(self.__rst)
+            self.__rst_line.request(consumer='rst', type=gpiod.LINE_REQ_DIR_OUT)
 
         # swap width and height if selected origin is landscape mode by checking if third bit is 1
         if self.__origin.value & 0x20:
@@ -138,7 +138,7 @@ class ILI9486:
     def send(self, data, is_data=True, chunk_size=4096):
         """Writes a byte or an array of bytes to the display."""
         # dc low for command, high for data
-        GPIO.output(self.__dc, is_data)
+        self.__dc_line.set_value(is_data)
         if isinstance(data, int):
             self.__spi.writebytes([data])
         else:
@@ -158,11 +158,11 @@ class ILI9486:
     def reset(self):
         """Resets the display if a reset pin is provided."""
         if self.__rst is not None:
-            GPIO.output(self.__rst, GPIO.HIGH)
+            self.__rst_line.set_value(1)
             time.sleep(.001)  # wait a bit to make sure the output was HIGH
-            GPIO.output(self.__rst, GPIO.LOW)
+            self.__rst_line.set_value(0)
             time.sleep(.000100)  # wait 100 µs to trigger the reset (should be 10 µs, but the OS is not precise enough)
-            GPIO.output(self.__rst, GPIO.HIGH)
+            self.__rst_line.set_value(1)
             time.sleep(.120)  # wait 120 ms for finishing blanking and resetting
             self.__inverted = False
             self.__idle = False
@@ -229,7 +229,7 @@ class ILI9486:
         x1 = x0 + width - 1
         y1 = y0 + height - 1
         if image.mode != 'RGB' and image.mode != 'RGBA':
-            raise ValueError('Image must be in RGB or RGBA format')
+            raise ValueError('Image must be in RGB format')
         if x1 >= self.__width or y1 >= self.__height or x0 < 0 or y0 < 0:
             raise ValueError(
                 'Image exceeds display bounds ({0}x{1})'.format(self.__width, self.__height))
