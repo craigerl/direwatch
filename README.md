@@ -6,11 +6,11 @@ Display direwolf/APRS/packet information on small/adafruit TFT display (and/or p
 ```
 example: direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20
 
-usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE]
+usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE] [-d screentype]
 
 options:
   -h, --help            show this help message and exit
-  -l LOG, --log LOG     Direwolf or ygate log file location
+  -l LOG, --log LOG     Direwolf log file location
   -f FONTSIZE, --fontsize FONTSIZE
                         Font size for callsigns
   -t TITLE_TEXT, --title_text TITLE_TEXT
@@ -20,6 +20,9 @@ options:
   -x LON, --lon LON     Your Longitude 23.4567
   -s SAVEFILE, --savefile SAVEFILE
                         Save screen updates to png file
+  -d DISPLAY, --display DISPLAY
+                        st7789, ili9341, or ili9486
+
 
 ```
 
@@ -27,27 +30,28 @@ Newer demonstration (with symbols):  https://www.youtube.com/watch?v=NJ_IJNU7NA0
 
 Craig Lamparter KM6LYW,  2021, MIT Licnese
 
-This will tail a direwolf log file and display callsigns on an
-adafruit st7789 tft display (https://www.adafruit.com/product/4484).
-Follow the instructions here to get the driver/library loaded:
+This will tail a direwolf log file and display callsigns on a small tft display:
 
-https://learn.adafruit.com/adafruit-mini-pitft-135x240-color-tft-add-on-for-raspberry-pi/python-setup
+-  https://www.adafruit.com/product/4484   (st7789)
+-  https://www.adafruit.com/product/2423   (ili9341) 
+-  https://www.amazon.com/Resistive-Screen-IPS-Resolution-Controller/dp/B07V9WW96D  (ili9486)
 
-Three screens are supported ST7789 240x240, ST7789 240x135, ILI9341 240x360.
+Three screens are supported st7789 240x240, ili9341 240x360, ili9486 320x480
 
-Current configuration is for the 240x240 st7789 unit.
+Default configuration is for the 240x240 st7789 screen.  
 
-Uncomment the screen section for your particular screen around line 100.
+Specify screen type with "-d" option.
+   st7789
+   ili9341
+   ili9486
 
 Do not install the kernel module/framebuffer.
 
-GPIO pins 12 (DCD) and 16 (TX) are monitored and light green/red icons
-respectively.  Configure these gpio pins in direwolf.
-
-For Pi5, use digibuttons.gpiod.py, for other Pi's use digibuttons.rpigpio.py or digibuttons.gpiozero .
+Red/Green indicators use direwolf's log file, be sure to add "-d o" to
+the direwolf command line for this feature to work.
 
 
-![Ygate with Direwatch](http://craiger.org/ygatescreen.png)
+![Ygate with Direwatch](http://craiger.org/direwatch.png)
 
 
 Shopping list for a PiZero2W SDR APRS receive-only igate
@@ -63,7 +67,7 @@ Shopping list for a PiZero2W SDR APRS receive-only igate
 Installation on Raspberry Pi OS Bookworm, including optional rtl-sdr receiver:
 ```
 sudo apt-get update
-sudo apt-get install direwolf rtl-sdr git python3-pip fonts-dejavu  python3-pil python3-pyinotify python3-numpy
+sudo apt-get install direwolf rtl-sdr git python3-pip fonts-dejavu python3-pil python3-pyinotify python3-numpy python3-libgpiod python3-lgpio
 sudo pip3  install --break-system-packages adafruit-circuitpython-rgb-display
 sudo pip3  install --break-system-packages aprslib
 
@@ -89,7 +93,7 @@ ADEVICE null
 """"""""""""""""""""""
 
 cd direwatch
-rtl_fm  -s 22050 -g 49 -f 144.39M 2> /dev/null | direwolf -t 0 -r 22050  -   > direwolf.log &
+rtl_fm  -s 22050 -g 49 -f 144.39M 2> /dev/null | direwolf -d o -t 0 -r 22050  -   > direwolf.log &
 ./direwatch.py -o  -l direwolf.log -t "APRS"
 
 ```
