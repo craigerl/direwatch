@@ -50,8 +50,8 @@ import digitalio
 import board
 from PIL import Image, ImageDraw, ImageFont
 import re
-import adafruit__display.st7789 as st7789  
-import adafruit__display.ili9341 as ili9341 
+import adafruit_rgb_display.st7789 as st7789  
+import adafruit_rgb_display.ili9341 as ili9341 
 #import ILI9486_gpiod as ili9486
 import ILI9486 as ili9486
 import pyinotify
