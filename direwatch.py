@@ -34,25 +34,6 @@ Do not install the kernel module/framebuffer.
 GPIO pins 12 (PTT) and 16 (DCD) are monitored and light green/red icons respectively.
 Configure these gpio pins in direwolf.
 
-Installation on raspbian/bullseye for short-attentions span programmers like me:
-  sudo apt-get install python3-pip   # python >= 3.6 required
-  #sudo apt-get install gpiozero
-  sudo pip3 install adafruit-circuitpython--display
-  sudo pip3 install pyinotify
-  sudo apt-get install python3-dev python3-rpi.gpio python3-lgpio
-  vi /boot/firmware/config.txt  # uncomment following line: "dtparam=spi=on"
-  sudo pip3 install --upgrade adafruit-python-shell
-  wget https://raw.githubusercontent.com/adafruit/Raspberry-Pi-Installer-Scripts/master/raspi-blinka.py
-  sudo python3 raspi-blinka.py   ## this gets the digitalio python module
-  sudo pip install aprslib     ## so we can parse ax.25 packets
-
-Installation on raspbian/bookworm
-   sudo rm -rf /usr/lib/python3.11/EXTERNALLY-MANAGED
-   sudo pip3 install Adafruit-Blinka
-   sudo pip3 install python3-numpy
-   sudo pip3 install adafruit-circuitpython--display
-   sudo pip3 install aprslib
-
 Much code taken from ladyada for her great work driving these devices,
 
 Included ILI9486 python library taken from https://github.com/SirLefti/Python_ILI9486
