@@ -70,7 +70,7 @@ Installation on Raspberry Pi OS Bookworm, including optional rtl-sdr receiver:
 ```
 sudo apt-get update
 sudo apt-get install direwolf rtl-sdr git python3-pip fonts-dejavu python3-pil python3-pyinotify python3-numpy python3-libgpiod python3-lgpio
-sudo pip3  install --break-system-packages adafruit-circuitpython-rgb-display
+sudo pip3  install --break-system-packages adafruit-circuitpython-rgb-display Adafruit-Blinka
 sudo pip3  install --break-system-packages aprslib
 
 git clone https://github.com/craigerl/direwatch.git
