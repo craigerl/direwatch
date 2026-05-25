@@ -58,6 +58,7 @@ def parse_arguments():
 #    ap.add_argument("-i", "--ip", required=False, help="display IP address instead of tiny text")
     ap.add_argument("-g", "--graphic", required=False, help="Display a small image on screen")
     ap.add_argument("-d", "--display", required=False, help="st7789, ili9341, ili9486")
+    ap.add_argument("-r", "--rotate-180", action='store_true', required=False, help="Rotate ili9486 display 180 degrees")
     args = vars(ap.parse_args())
     return args
 
@@ -119,11 +120,12 @@ elif displaytype == 'ili9486':
    spi = SpiDev(0,0)
    spi.mode = 0b10
    spi.max_speed_hz = 48000000
+   ili9486_origin = ili9486.Origin.UPPER_LEFT if args["rotate_180"] else ili9486.Origin.LOWER_RIGHT
    disp = ili9486.ILI9486(
        spi=spi,
        rst=25,
        dc=24,
-       origin=ili9486.Origin.LOWER_RIGHT
+       origin=ili9486_origin
    ).begin()
    disp.invert()
    fontbump = 10

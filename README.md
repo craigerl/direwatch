@@ -6,7 +6,7 @@ Display direwolf/APRS/packet information on small/adafruit TFT display (and/or p
 ```
 example: direwatch.py  --log "/root/direwolf.log" --title_text "APRS digi" --font 20
 
-usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE] [-d screentype]
+usage: direwatch.py [-h] -l LOG [-f FONTSIZE] [-t TITLE_TEXT] [-o] [-y LAT] [-x LON] [-s SAVEFILE] [-d screentype] [-r]
 
 options:
   -h, --help            show this help message and exit
@@ -22,6 +22,7 @@ options:
                         Save screen updates to png file
   -d DISPLAY, --display DISPLAY
                         st7789, ili9341, or ili9486
+  -r, --rotate-180      Rotate ili9486 display 180 degrees
 
 
 ```
@@ -46,6 +47,8 @@ Specify screen type with "-d" option.
    st7789
    ili9341
    ili9486
+
+Use "-r" or "--rotate-180" to flip the ili9486 display 180 degrees.
 
 Do not install the kernel module/framebuffer.
 
